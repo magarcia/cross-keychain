@@ -1,0 +1,99 @@
+{
+  "branches": ["main"],
+  "plugins": [
+    "@semantic-release/commit-analyzer",
+    [
+      "@semantic-release/release-notes-generator",
+      {
+        "preset": "conventionalcommits",
+        "presetConfig": {
+          "types": [
+            {
+              "type": "feat",
+              "section": "🚀 Features"
+            },
+            {
+              "type": "fix",
+              "section": "🐛 Bug Fixes"
+            },
+            {
+              "type": "perf",
+              "section": "⚡ Performance Improvements"
+            },
+            {
+              "type": "revert",
+              "section": "⏪ Reverts"
+            },
+            {
+              "type": "docs",
+              "section": "📚 Documentation"
+            },
+            {
+              "type": "style",
+              "section": "💄 Styles"
+            },
+            {
+              "type": "chore",
+              "section": "🔧 Miscellaneous Chores"
+            },
+            {
+              "type": "refactor",
+              "section": "♻️ Code Refactoring"
+            },
+            {
+              "type": "test",
+              "section": "✅ Tests"
+            },
+            {
+              "type": "build",
+              "section": "🏗️ Build System"
+            },
+            {
+              "type": "ci",
+              "section": "👷 Continuous Integration"
+            }
+          ]
+        },
+        "writerOpts": {
+          "commitsSort": ["subject", "scope"]
+        }
+      }
+    ],
+    "@semantic-release/changelog",
+    "@semantic-release/npm",
+    [
+      "@semantic-release/git",
+      {
+        "assets": ["CHANGELOG.md", "package.json", "package-lock.json"],
+        "message": "chore(release): ${nextRelease.version} [skip ci]\n\n${nextRelease.notes}"
+      }
+    ],
+    [
+      "@semantic-release/github",
+      {
+        "assets": [
+          {
+            "path": "dist/**/*",
+            "label": "Distribution files (${nextRelease.version})"
+          },
+          {
+            "path": "package.json",
+            "label": "Package manifest"
+          },
+          {
+            "path": "README.md",
+            "label": "Documentation"
+          }
+        ],
+        "successComment": "🎉 This ${issue.pull_request ? 'PR is included' : 'issue has been resolved'} in version [${nextRelease.version}](${releases.filter(release => /github\\.com/.test(release.url))[0].url}) which has been released. 🚀\n\n**Installation:**\n```bash\nnpm install ${package.name}@${nextRelease.version}\n```\n\n**What's new:**\n${nextRelease.notes}",
+        "failComment": "❌ The release from branch `${branch.name}` had failed due to the following errors:\n- ${errors.map(err => err.message).join('\\n- ')}",
+        "failTitle": "🚨 Release failed for ${package.name}@${nextRelease.version}",
+        "labels": false,
+        "releasedLabels": [
+          "released<%= nextRelease.channel ? `-${nextRelease.channel}` : '' %>"
+        ],
+        "addReleases": "bottom"
+      }
+    ]
+  ]
+}

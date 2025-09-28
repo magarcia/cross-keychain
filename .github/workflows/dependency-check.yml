@@ -1,0 +1,227 @@
+name: Dependency Check
+
+on:
+  schedule:
+    - cron: "0 9 * * 1" # Every Monday at 9 AM UTC
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: false
+
+jobs:
+  dependency-check:
+    name: Check Dependencies
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      issues: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Check for outdated dependencies
+        id: outdated
+        run: |
+          echo "Checking for outdated dependencies..."
+          if npm run deps:check | grep -q "All dependencies match the latest package versions"; then
+            echo "outdated=false" >> $GITHUB_OUTPUT
+            echo "No outdated dependencies found"
+          else
+            echo "outdated=true" >> $GITHUB_OUTPUT
+            echo "Outdated dependencies found"
+            npm run deps:check > outdated-deps.txt 2>&1 || true
+          fi
+
+      - name: Run security audit
+        id: audit
+        run: |
+          echo "Running security audit..."
+          if npm run security; then
+            echo "vulnerable=false" >> $GITHUB_OUTPUT
+            echo "No security vulnerabilities found"
+          else
+            echo "vulnerable=true" >> $GITHUB_OUTPUT
+            echo "Security vulnerabilities found"
+            npm run security > security-audit.txt 2>&1 || true
+          fi
+
+      - name: Check for unused dependencies
+        id: unused
+        run: |
+          echo "Checking for unused dependencies..."
+          if npm run deps:unused; then
+            echo "unused=false" >> $GITHUB_OUTPUT
+            echo "No unused dependencies found"
+          else
+            echo "unused=true" >> $GITHUB_OUTPUT
+            echo "Unused dependencies found"
+            npm run deps:unused > unused-deps.txt 2>&1 || true
+          fi
+
+      - name: Create issue for outdated dependencies
+        if: steps.outdated.outputs.outdated == 'true'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const outdatedDeps = fs.readFileSync('outdated-deps.txt', 'utf8');
+
+            const issueTitle = '🔄 Outdated Dependencies Found';
+            const issueBody = `
+            ## Outdated Dependencies Report
+
+            The weekly dependency check has found outdated packages that should be reviewed and updated.
+
+            ### Details
+            \`\`\`
+            ${outdatedDeps}
+            \`\`\`
+
+            ### Actions to take
+            1. Review the outdated dependencies
+            2. Test compatibility with the new versions
+            3. Update dependencies using: \`npm run deps:update\`
+            4. Run tests to ensure everything still works
+
+            ---
+            *This issue was automatically created by the Dependency Check workflow*
+            `;
+
+            // Check if issue already exists
+            const issues = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'open',
+              labels: ['dependencies']
+            });
+
+            const existingIssue = issues.data.find(issue => issue.title === issueTitle);
+
+            if (!existingIssue) {
+              await github.rest.issues.create({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                title: issueTitle,
+                body: issueBody,
+                labels: ['dependencies', 'maintenance']
+              });
+              console.log('Created new issue for outdated dependencies');
+            } else {
+              console.log('Issue for outdated dependencies already exists');
+            }
+
+      - name: Create issue for security vulnerabilities
+        if: steps.audit.outputs.vulnerable == 'true'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const auditReport = fs.readFileSync('security-audit.txt', 'utf8');
+
+            const issueTitle = '🚨 Security Vulnerabilities Found';
+            const issueBody = `
+            ## Security Audit Report
+
+            The weekly security audit has found vulnerabilities that need immediate attention.
+
+            ### Details
+            \`\`\`
+            ${auditReport}
+            \`\`\`
+
+            ### Actions to take
+            1. Review the security vulnerabilities immediately
+            2. Update vulnerable packages: \`npm audit fix\`
+            3. If automatic fixes aren't available, manually update the packages
+            4. Run tests to ensure everything still works
+
+            ---
+            *This issue was automatically created by the Dependency Check workflow*
+            `;
+
+            // Check if issue already exists
+            const issues = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'open',
+              labels: ['security']
+            });
+
+            const existingIssue = issues.data.find(issue => issue.title === issueTitle);
+
+            if (!existingIssue) {
+              await github.rest.issues.create({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                title: issueTitle,
+                body: issueBody,
+                labels: ['security', 'urgent']
+              });
+              console.log('Created new issue for security vulnerabilities');
+            } else {
+              console.log('Issue for security vulnerabilities already exists');
+            }
+
+      - name: Create issue for unused dependencies
+        if: steps.unused.outputs.unused == 'true'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const unusedDeps = fs.readFileSync('unused-deps.txt', 'utf8');
+
+            const issueTitle = '🧹 Unused Dependencies Found';
+            const issueBody = `
+            ## Unused Dependencies Report
+
+            The weekly dependency check has found unused dependencies that can be removed to reduce bundle size.
+
+            ### Details
+            \`\`\`
+            ${unusedDeps}
+            \`\`\`
+
+            ### Actions to take
+            1. Review the unused dependencies
+            2. Confirm they are truly unused
+            3. Remove unused packages: \`npm uninstall <package-name>\`
+            4. Run tests to ensure nothing breaks
+
+            ---
+            *This issue was automatically created by the Dependency Check workflow*
+            `;
+
+            // Check if issue already exists
+            const issues = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'open',
+              labels: ['dependencies']
+            });
+
+            const existingIssue = issues.data.find(issue => issue.title === issueTitle);
+
+            if (!existingIssue) {
+              await github.rest.issues.create({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                title: issueTitle,
+                body: issueBody,
+                labels: ['dependencies', 'maintenance']
+              });
+              console.log('Created new issue for unused dependencies');
+            } else {
+              console.log('Issue for unused dependencies already exists');
+            }
