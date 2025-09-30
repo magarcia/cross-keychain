@@ -7,10 +7,7 @@ import {
   PasswordDeleteError,
 } from "../errors.js";
 
-const isLinux = process.platform === "linux";
-const describeLinux = isLinux ? describe : describe.skip;
-
-describeLinux("SecretServiceBackend", () => {
+describe("SecretServiceBackend", () => {
   beforeEach(() => {
     vi.restoreAllMocks();
   });

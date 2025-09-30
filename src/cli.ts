@@ -1,5 +1,5 @@
 import meow from "meow";
-import readline from "readline";
+import { password } from "@inquirer/prompts";
 import {
   deletePassword,
   diagnose,
@@ -219,55 +219,15 @@ async function readSecret(prompt: string): Promise<string> {
   return await promptHidden(prompt);
 }
 
+/**
+ * Prompts the user for a password with hidden input.
+ * Uses the inquirer library for robust terminal handling across different environments.
+ *
+ * @param prompt - The prompt message to display
+ * @returns The password entered by the user
+ */
 async function promptHidden(prompt: string): Promise<string> {
-  return await new Promise<string>((resolve) => {
-    const rl = readline.createInterface({
-      input: process.stdin,
-      output: process.stdout,
-      terminal: true,
-    });
-
-    const wasRaw = process.stdin.isTTY ? process.stdin.isRaw : undefined;
-    if (process.stdin.isTTY) {
-      process.stdin.setRawMode(true);
-    }
-
-    let value = "";
-
-    const onData = (char: Buffer): void => {
-      const [code] = char;
-      if (code === 3) {
-        process.stdout.write("\n");
-        cleanup();
-        process.exit(1);
-      }
-      if (code === 13 || code === 10) {
-        process.stdout.write("\n");
-        cleanup();
-        resolve(value);
-        return;
-      }
-      if (code === 127 || code === 8) {
-        value = value.slice(0, -1);
-      } else {
-        value += char.toString();
-      }
-      process.stdout.clearLine(0);
-      process.stdout.cursorTo(0);
-      process.stdout.write(prompt + "*".repeat(value.length));
-    };
-
-    const cleanup = (): void => {
-      process.stdin.off("data", onData);
-      rl.close();
-      if (process.stdin.isTTY) {
-        process.stdin.setRawMode(Boolean(wasRaw));
-      }
-    };
-
-    process.stdout.write(prompt);
-    process.stdin.on("data", onData);
-  });
+  return await password({ message: prompt });
 }
 
 export const __testing = {

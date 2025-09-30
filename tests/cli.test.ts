@@ -1,6 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { Readable } from "node:stream";
-import readline from "node:readline";
 
 type CliFlags = {
   backend?: string;
@@ -365,190 +364,43 @@ describe("promptHidden", () => {
     vi.clearAllMocks();
   });
 
-  it("masks input and resolves the collected password", async () => {
-    const stdinDescriptor = Object.getOwnPropertyDescriptor(process, "stdin")!;
-    const stdoutDescriptor = Object.getOwnPropertyDescriptor(
-      process,
-      "stdout",
-    )!;
+  it("calls the inquirer password prompt with correct message", async () => {
+    vi.doMock("@inquirer/prompts", () => ({
+      password: vi.fn().mockResolvedValue("test-password"),
+    }));
 
-    const stdin = new Readable({ read() {} }) as NodeJS.ReadStream & {
-      isTTY: boolean;
-      isRaw?: boolean;
-      setRawMode(mode: boolean): void;
-    };
-    Object.assign(stdin, {
-      isTTY: true,
-      isRaw: false,
-      setRawMode: vi.fn(),
-    });
+    const { __testing } = await import("../src/cli.js");
+    const { password } = await import("@inquirer/prompts");
 
-    const stdoutWrites: string[] = [];
-    const stdout = {
-      write: vi.fn((value: string) => {
-        stdoutWrites.push(value);
-        return true;
-      }),
-      clearLine: vi.fn(),
-      cursorTo: vi.fn(),
-    } as unknown as NodeJS.WriteStream;
+    const result = await __testing.promptHidden("Enter password: ");
 
-    Object.defineProperty(process, "stdin", {
-      configurable: true,
-      value: stdin,
-    });
-    Object.defineProperty(process, "stdout", {
-      configurable: true,
-      value: stdout,
-    });
-
-    const closeSpy = vi.fn();
-    const interfaceSpy = vi
-      .spyOn(readline, "createInterface")
-      .mockReturnValue({ close: closeSpy } as unknown as readline.Interface);
-
-    try {
-      const { __testing } = await import("../src/cli.js");
-
-      const promise = __testing.promptHidden("Password: ");
-
-      stdin.emit("data", Buffer.from("a"));
-      stdin.emit("data", Buffer.from("b"));
-      stdin.emit("data", Buffer.from([127]));
-      stdin.emit("data", Buffer.from("c"));
-      stdin.emit("data", Buffer.from("\n"));
-
-      const result = await promise;
-
-      expect(result).toBe("ac");
-      expect(stdin.setRawMode).toHaveBeenCalledWith(true);
-      expect(stdin.setRawMode).toHaveBeenLastCalledWith(false);
-      expect(stdout.write).toHaveBeenCalledWith("Password: ");
-      expect(stdoutWrites).toContain("Password: **");
-      expect(closeSpy).toHaveBeenCalled();
-    } finally {
-      interfaceSpy.mockRestore();
-      Object.defineProperty(process, "stdin", stdinDescriptor);
-      Object.defineProperty(process, "stdout", stdoutDescriptor);
-    }
+    expect(result).toBe("test-password");
+    expect(password).toHaveBeenCalledWith({ message: "Enter password: " });
   });
 
-  it("invokes readSecret with prompt when stdin is a TTY", async () => {
+  it("readSecret calls promptHidden when stdin is a TTY", async () => {
     const stdinDescriptor = Object.getOwnPropertyDescriptor(process, "stdin")!;
-    const stdoutDescriptor = Object.getOwnPropertyDescriptor(
-      process,
-      "stdout",
-    )!;
-
-    const stdin = new Readable({ read() {} }) as NodeJS.ReadStream & {
-      isTTY: boolean;
-      isRaw?: boolean;
-      setRawMode(mode: boolean): void;
-    };
-    Object.assign(stdin, {
+    const stdin = {
       isTTY: true,
-      isRaw: false,
-      setRawMode: vi.fn(),
-    });
-
-    const stdout = {
-      write: vi.fn(() => true),
-      clearLine: vi.fn(),
-      cursorTo: vi.fn(),
-    } as unknown as NodeJS.WriteStream;
+    } as NodeJS.ReadStream;
 
     Object.defineProperty(process, "stdin", {
       configurable: true,
       value: stdin,
     });
-    Object.defineProperty(process, "stdout", {
-      configurable: true,
-      value: stdout,
-    });
-
-    const closeSpy = vi.fn();
-    const interfaceSpy = vi
-      .spyOn(readline, "createInterface")
-      .mockReturnValue({ close: closeSpy } as unknown as readline.Interface);
 
     try {
+      vi.doMock("@inquirer/prompts", () => ({
+        password: vi.fn().mockResolvedValue("tty-password"),
+      }));
+
       const { __testing } = await import("../src/cli.js");
 
-      const promise = __testing.readSecret("Password: ");
-      stdin.emit("data", Buffer.from("s"));
-      stdin.emit("data", Buffer.from("e"));
-      stdin.emit("data", Buffer.from("c"));
-      stdin.emit("data", Buffer.from("r"));
-      stdin.emit("data", Buffer.from("e"));
-      stdin.emit("data", Buffer.from("t"));
-      stdin.emit("data", Buffer.from("\n"));
+      const result = await __testing.readSecret("Password: ");
 
-      const result = await promise;
-
-      expect(result).toBe("secret");
-      expect(closeSpy).toHaveBeenCalled();
+      expect(result).toBe("tty-password");
     } finally {
-      interfaceSpy.mockRestore();
       Object.defineProperty(process, "stdin", stdinDescriptor);
-      Object.defineProperty(process, "stdout", stdoutDescriptor);
-    }
-  });
-
-  it("handles Ctrl+C by exiting with code 1", async () => {
-    const stdinDescriptor = Object.getOwnPropertyDescriptor(process, "stdin")!;
-    const stdoutDescriptor = Object.getOwnPropertyDescriptor(
-      process,
-      "stdout",
-    )!;
-    const exitSpy = vi.spyOn(process, "exit").mockImplementation((() => {
-      throw new Error("exit");
-    }) as never);
-
-    const stdin = new Readable({ read() {} }) as NodeJS.ReadStream & {
-      isTTY: boolean;
-      isRaw?: boolean;
-      setRawMode(mode: boolean): void;
-    };
-    Object.assign(stdin, {
-      isTTY: true,
-      isRaw: false,
-      setRawMode: vi.fn(),
-    });
-
-    const stdout = {
-      write: vi.fn(() => true),
-      clearLine: vi.fn(),
-      cursorTo: vi.fn(),
-    } as unknown as NodeJS.WriteStream;
-
-    Object.defineProperty(process, "stdin", {
-      configurable: true,
-      value: stdin,
-    });
-    Object.defineProperty(process, "stdout", {
-      configurable: true,
-      value: stdout,
-    });
-
-    const closeSpy = vi.fn();
-    const interfaceSpy = vi
-      .spyOn(readline, "createInterface")
-      .mockReturnValue({ close: closeSpy } as unknown as readline.Interface);
-
-    try {
-      const { __testing } = await import("../src/cli.js");
-
-      const promise = __testing.promptHidden("Password: ");
-      promise.catch(() => {});
-
-      expect(() => stdin.emit("data", Buffer.from([3]))).toThrow("exit");
-      expect(stdout.write).toHaveBeenCalledWith("\n");
-      expect(exitSpy).toHaveBeenCalledWith(1);
-    } finally {
-      interfaceSpy.mockRestore();
-      exitSpy.mockRestore();
-      Object.defineProperty(process, "stdin", stdinDescriptor);
-      Object.defineProperty(process, "stdout", stdoutDescriptor);
     }
   });
 });

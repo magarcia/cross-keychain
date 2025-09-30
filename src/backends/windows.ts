@@ -4,7 +4,7 @@ import {
   PasswordDeleteError,
 } from "../errors.js";
 import { ConfigurableBackend } from "../base-backend.js";
-import { runtime, CREDMAN_BOOTSTRAP } from "../runtime.js";
+import { runtime, getCredmanBootstrap } from "../runtime.js";
 
 /**
  * Backend for Windows Credential Manager using PowerShell and Windows API.
@@ -49,7 +49,8 @@ export class WindowsCredentialBackend extends ConfigurableBackend {
     this.validateIdentifier(account, "account");
     const target = this.buildTarget(service, account);
     const targetB64 = Buffer.from(target, "utf8").toString("base64");
-    const script = `${CREDMAN_BOOTSTRAP}
+    const bootstrap = await getCredmanBootstrap();
+    const script = `${bootstrap}
 $target = [System.Text.Encoding]::UTF8.GetString([System.Convert]::FromBase64String('${targetB64}'))
 $ptr = [IntPtr]::Zero
 if (-not [CredMan.CredentialManager]::CredRead($target, 1, 0, [ref]$ptr)) {
@@ -98,7 +99,8 @@ try {
     const targetB64 = Buffer.from(target, "utf8").toString("base64");
     const accountB64 = Buffer.from(account, "utf8").toString("base64");
     const passwordB64 = Buffer.from(password, "utf8").toString("base64");
-    const script = `${CREDMAN_BOOTSTRAP}
+    const bootstrap = await getCredmanBootstrap();
+    const script = `${bootstrap}
 $target = [System.Text.Encoding]::UTF8.GetString([System.Convert]::FromBase64String('${targetB64}'))
 $username = [System.Text.Encoding]::UTF8.GetString([System.Convert]::FromBase64String('${accountB64}'))
 $password = [System.Text.Encoding]::UTF8.GetString([System.Convert]::FromBase64String('${passwordB64}'))
@@ -142,7 +144,8 @@ try {
     this.validateIdentifier(account, "account");
     const target = this.buildTarget(service, account);
     const targetB64 = Buffer.from(target, "utf8").toString("base64");
-    const script = `${CREDMAN_BOOTSTRAP}
+    const bootstrap = await getCredmanBootstrap();
+    const script = `${bootstrap}
 $target = [System.Text.Encoding]::UTF8.GetString([System.Convert]::FromBase64String('${targetB64}'))
 if (-not [CredMan.CredentialManager]::CredDelete($target, 1, 0)) {
   $code = [Runtime.InteropServices.Marshal]::GetLastWin32Error()

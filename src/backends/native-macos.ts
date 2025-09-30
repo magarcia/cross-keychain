@@ -135,8 +135,27 @@ export class NativeKeychainBackend extends ConfigurableBackend {
     }
   }
 
-  protected async lookupUsernames(_service: string): Promise<string[]> {
-    return [];
+  /**
+   * Lists all usernames stored for a given service.
+   * Uses the @napi-rs/keyring findCredentials API.
+   *
+   * @param service - The service identifier
+   * @returns Array of usernames that have credentials stored for this service
+   */
+  protected async lookupUsernames(service: string): Promise<string[]> {
+    if (!NativeKeyringEntry) {
+      return [];
+    }
+
+    try {
+      // Import findCredentials dynamically
+      const { findCredentials } = await import("@napi-rs/keyring");
+      const credentials = findCredentials(service);
+      return credentials.map((cred) => cred.account);
+    } catch {
+      // If findCredentials fails or is not available, return empty array
+      return [];
+    }
   }
 
   /**

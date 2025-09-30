@@ -486,4 +486,76 @@ describeMacOS("NativeKeychainBackend", () => {
       expect(result).toBeNull();
     });
   });
+
+  describe("getCredential with lookupUsernames", () => {
+    it("returns credential when findCredentials returns results", async () => {
+      vi.doMock("@napi-rs/keyring", () => ({
+        Entry: class MockEntry {
+          private service: string;
+          private account: string;
+
+          constructor(service: string, account: string) {
+            this.service = service;
+            this.account = account;
+          }
+
+          getPassword() {
+            if (this.account === "user1") {
+              return "password1";
+            }
+            return null;
+          }
+        },
+        findCredentials: (service: string) => {
+          if (service === "github") {
+            return [
+              { account: "user1", password: "password1" },
+              { account: "user2", password: "password2" },
+            ];
+          }
+          return [];
+        },
+      }));
+
+      const { NativeKeychainBackend } = await import("./native-macos.js");
+      await NativeKeychainBackend.isSupported();
+
+      const backend = new NativeKeychainBackend();
+      const result = await backend.getCredential("github");
+
+      expect(result).toEqual({ username: "user1", password: "password1" });
+    });
+
+    it("returns null when findCredentials returns empty array", async () => {
+      vi.doMock("@napi-rs/keyring", () => ({
+        Entry: class MockEntry {},
+        findCredentials: () => [],
+      }));
+
+      const { NativeKeychainBackend } = await import("./native-macos.js");
+      await NativeKeychainBackend.isSupported();
+
+      const backend = new NativeKeychainBackend();
+      const result = await backend.getCredential("nonexistent");
+
+      expect(result).toBeNull();
+    });
+
+    it("handles findCredentials errors gracefully", async () => {
+      vi.doMock("@napi-rs/keyring", () => ({
+        Entry: class MockEntry {},
+        findCredentials: () => {
+          throw new Error("findCredentials not supported");
+        },
+      }));
+
+      const { NativeKeychainBackend } = await import("./native-macos.js");
+      await NativeKeychainBackend.isSupported();
+
+      const backend = new NativeKeychainBackend();
+      const result = await backend.getCredential("service");
+
+      expect(result).toBeNull();
+    });
+  });
 });

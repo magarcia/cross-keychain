@@ -1,12 +1,17 @@
 import path from "path";
 import { promises as fs, constants as fsConstants } from "fs";
 import { spawn } from "child_process";
+import { fileURLToPath } from "url";
+import { dirname } from "path";
 import { KeyringError, InitError } from "./errors.js";
 import type {
   CommandResult,
   CommandOptions,
   RuntimeFunctions,
 } from "./types.js";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 
 async function runCommandImpl(
   command: string,
@@ -97,46 +102,29 @@ async function executableExistsImpl(command: string): Promise<boolean> {
   return false;
 }
 
-export const CREDMAN_BOOTSTRAP = String.raw`
-if (-not ([System.Management.Automation.PSTypeName]'CredMan.CredentialManager').Type) {
-  Add-Type -TypeDefinition @'
-using System;
-using System.Runtime.InteropServices;
+let credmanBootstrap: string | null = null;
 
-namespace CredMan {
-  public static class CredentialManager {
-    [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
-    public struct CREDENTIAL {
-      public uint Flags;
-      public uint Type;
-      public string TargetName;
-      public string Comment;
-      public System.Runtime.InteropServices.ComTypes.FILETIME LastWritten;
-      public uint CredentialBlobSize;
-      public IntPtr CredentialBlob;
-      public uint Persist;
-      public uint AttributeCount;
-      public IntPtr Attributes;
-      public string TargetAlias;
-      public string UserName;
-    }
-
-    [DllImport("Advapi32.dll", EntryPoint = "CredReadW", CharSet = CharSet.Unicode, SetLastError = true)]
-    public static extern bool CredRead(string target, uint type, uint flags, out IntPtr credentialPtr);
-
-    [DllImport("Advapi32.dll", EntryPoint = "CredWriteW", CharSet = CharSet.Unicode, SetLastError = true)]
-    public static extern bool CredWrite(ref CREDENTIAL credential, uint flags);
-
-    [DllImport("Advapi32.dll", EntryPoint = "CredDeleteW", CharSet = CharSet.Unicode, SetLastError = true)]
-    public static extern bool CredDelete(string target, uint type, uint flags);
-
-    [DllImport("Advapi32.dll", SetLastError = true)]
-    public static extern void CredFree(IntPtr buffer);
+/**
+ * Loads the Windows Credential Manager PowerShell bootstrap script.
+ * The script is cached after first load for performance.
+ *
+ * @returns The PowerShell script content
+ */
+async function getCredmanBootstrap(): Promise<string> {
+  if (!credmanBootstrap) {
+    const scriptPath = path.join(__dirname, "scripts", "credman.ps1");
+    credmanBootstrap = await fs.readFile(scriptPath, "utf-8");
   }
+  return credmanBootstrap;
 }
-'@
-}
-`;
+
+/**
+ * Legacy export for backwards compatibility.
+ * @deprecated Use getCredmanBootstrap() instead
+ */
+export const CREDMAN_BOOTSTRAP = "";
+
+export { getCredmanBootstrap };
 
 export const runtime: RuntimeFunctions = {
   runCommand: runCommandImpl,
