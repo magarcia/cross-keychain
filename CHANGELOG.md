@@ -1,3 +1,7 @@
+## <small>1.0.1 (2025-09-30)</small>
+
+- fix: add public access to npm publish config ([015bfc1](https://github.com/magarcia/cross-keychain/commit/015bfc1))
+
 ## 1.0.0 (2025-09-30)
 
 - fix: add required permissions to release workflow ([2ae3a4c](https://github.com/magarcia/cross-keychain/commit/2ae3a4c))
