@@ -118,12 +118,6 @@ async function getCredmanBootstrap(): Promise<string> {
   return credmanBootstrap;
 }
 
-/**
- * Legacy export for backwards compatibility.
- * @deprecated Use getCredmanBootstrap() instead
- */
-export const CREDMAN_BOOTSTRAP = "";
-
 export { getCredmanBootstrap };
 
 export const runtime: RuntimeFunctions = {
