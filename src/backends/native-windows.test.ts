@@ -1,9 +1,9 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
 
-// Skip all tests on non-macOS platforms
-const describeMacOS = process.platform === "darwin" ? describe : describe.skip;
+// Skip all tests on non-Windows platforms
+const describeWindows = process.platform === "win32" ? describe : describe.skip;
 
-describeMacOS("NativeKeychainBackend", () => {
+describeWindows("NativeWindowsBackend", () => {
   beforeEach(() => {
     vi.resetModules();
   });
@@ -21,8 +21,8 @@ describeMacOS("NativeKeychainBackend", () => {
         },
       }));
 
-      const { NativeKeychainBackend } = await import("./native-macos.js");
-      const result = await NativeKeychainBackend.isSupported();
+      const { NativeWindowsBackend } = await import("./native-windows.js");
+      const result = await NativeWindowsBackend.isSupported();
       expect(result).toBe(true);
     });
 
@@ -32,8 +32,8 @@ describeMacOS("NativeKeychainBackend", () => {
         throw new Error("Module not found");
       });
 
-      const { NativeKeychainBackend } = await import("./native-macos.js");
-      const result = await NativeKeychainBackend.isSupported();
+      const { NativeWindowsBackend } = await import("./native-windows.js");
+      const result = await NativeWindowsBackend.isSupported();
       expect(result).toBe(false);
     });
   });
@@ -44,9 +44,9 @@ describeMacOS("NativeKeychainBackend", () => {
         Entry: class MockEntry {},
       }));
 
-      const { NativeKeychainBackend } = await import("./native-macos.js");
-      const backend = new NativeKeychainBackend();
-      expect(backend.id).toBe("native-macos");
+      const { NativeWindowsBackend } = await import("./native-windows.js");
+      const backend = new NativeWindowsBackend();
+      expect(backend.id).toBe("native-windows");
     });
 
     it("has correct name", async () => {
@@ -54,24 +54,24 @@ describeMacOS("NativeKeychainBackend", () => {
         Entry: class MockEntry {},
       }));
 
-      const { NativeKeychainBackend } = await import("./native-macos.js");
-      const backend = new NativeKeychainBackend();
-      expect(backend.name).toBe("Native macOS Keychain");
+      const { NativeWindowsBackend } = await import("./native-windows.js");
+      const backend = new NativeWindowsBackend();
+      expect(backend.name).toBe("Native Windows Credential Manager");
     });
 
-    it("has priority of 10 (higher than CLI backend)", async () => {
+    it("has priority of 10 (higher than PowerShell backend)", async () => {
       vi.doMock("@napi-rs/keyring", () => ({
         Entry: class MockEntry {},
       }));
 
-      const { NativeKeychainBackend } = await import("./native-macos.js");
-      const { MacOSKeychainBackend } = await import("./macos.js");
+      const { NativeWindowsBackend } = await import("./native-windows.js");
+      const { WindowsCredentialBackend } = await import("./windows.js");
 
-      const backend = new NativeKeychainBackend();
-      const cliBackend = new MacOSKeychainBackend();
+      const backend = new NativeWindowsBackend();
+      const psBackend = new WindowsCredentialBackend();
       expect(backend.priority).toBe(10);
-      expect(cliBackend.priority).toBe(5);
-      expect(backend.priority).toBeGreaterThan(cliBackend.priority);
+      expect(psBackend.priority).toBe(5);
+      expect(backend.priority).toBeGreaterThan(psBackend.priority);
     });
   });
 
@@ -84,10 +84,10 @@ describeMacOS("NativeKeychainBackend", () => {
         },
       }));
 
-      const { NativeKeychainBackend } = await import("./native-macos.js");
-      await NativeKeychainBackend.isSupported(); // Load module
+      const { NativeWindowsBackend } = await import("./native-windows.js");
+      await NativeWindowsBackend.isSupported(); // Load module
 
-      const backend = new NativeKeychainBackend();
+      const backend = new NativeWindowsBackend();
       const result = await backend.getPassword("test-service", "test-account");
 
       expect(result).toBe("test-password");
@@ -103,10 +103,10 @@ describeMacOS("NativeKeychainBackend", () => {
         },
       }));
 
-      const { NativeKeychainBackend } = await import("./native-macos.js");
-      await NativeKeychainBackend.isSupported(); // Load module
+      const { NativeWindowsBackend } = await import("./native-windows.js");
+      await NativeWindowsBackend.isSupported(); // Load module
 
-      const backend = new NativeKeychainBackend();
+      const backend = new NativeWindowsBackend();
       const result = await backend.getPassword("test-service", "test-account");
 
       expect(result).toBeNull();
@@ -121,10 +121,10 @@ describeMacOS("NativeKeychainBackend", () => {
         },
       }));
 
-      const { NativeKeychainBackend } = await import("./native-macos.js");
-      await NativeKeychainBackend.isSupported(); // Load module
+      const { NativeWindowsBackend } = await import("./native-windows.js");
+      await NativeWindowsBackend.isSupported(); // Load module
 
-      const backend = new NativeKeychainBackend();
+      const backend = new NativeWindowsBackend();
       const result = await backend.getPassword("test-service", "test-account");
 
       expect(result).toBeNull();
@@ -135,10 +135,10 @@ describeMacOS("NativeKeychainBackend", () => {
         throw new Error("Module not found");
       });
 
-      const { NativeKeychainBackend } = await import("./native-macos.js");
-      await NativeKeychainBackend.isSupported(); // Attempt to load module
+      const { NativeWindowsBackend } = await import("./native-windows.js");
+      await NativeWindowsBackend.isSupported(); // Attempt to load module
 
-      const backend = new NativeKeychainBackend();
+      const backend = new NativeWindowsBackend();
 
       await expect(
         backend.getPassword("test-service", "test-account"),
@@ -149,19 +149,21 @@ describeMacOS("NativeKeychainBackend", () => {
       vi.doMock("@napi-rs/keyring", () => ({
         Entry: class MockEntry {
           getPassword() {
-            throw new Error("Keychain access denied");
+            throw new Error("Credential manager access denied");
           }
         },
       }));
 
-      const { NativeKeychainBackend } = await import("./native-macos.js");
-      await NativeKeychainBackend.isSupported(); // Load module
+      const { NativeWindowsBackend } = await import("./native-windows.js");
+      await NativeWindowsBackend.isSupported(); // Load module
 
-      const backend = new NativeKeychainBackend();
+      const backend = new NativeWindowsBackend();
 
       await expect(
         backend.getPassword("test-service", "test-account"),
-      ).rejects.toThrow("Native keychain error: Keychain access denied");
+      ).rejects.toThrow(
+        "Native credential manager error: Credential manager access denied",
+      );
     });
 
     it("validates service identifier", async () => {
@@ -169,8 +171,8 @@ describeMacOS("NativeKeychainBackend", () => {
         Entry: class MockEntry {},
       }));
 
-      const { NativeKeychainBackend } = await import("./native-macos.js");
-      const backend = new NativeKeychainBackend();
+      const { NativeWindowsBackend } = await import("./native-windows.js");
+      const backend = new NativeWindowsBackend();
 
       await expect(backend.getPassword("", "test-account")).rejects.toThrow(
         "service cannot be empty",
@@ -182,8 +184,8 @@ describeMacOS("NativeKeychainBackend", () => {
         Entry: class MockEntry {},
       }));
 
-      const { NativeKeychainBackend } = await import("./native-macos.js");
-      const backend = new NativeKeychainBackend();
+      const { NativeWindowsBackend } = await import("./native-windows.js");
+      const backend = new NativeWindowsBackend();
 
       await expect(backend.getPassword("test-service", "")).rejects.toThrow(
         "account cannot be empty",
@@ -200,10 +202,10 @@ describeMacOS("NativeKeychainBackend", () => {
         },
       }));
 
-      const { NativeKeychainBackend } = await import("./native-macos.js");
-      await NativeKeychainBackend.isSupported(); // Load module
+      const { NativeWindowsBackend } = await import("./native-windows.js");
+      await NativeWindowsBackend.isSupported(); // Load module
 
-      const backend = new NativeKeychainBackend();
+      const backend = new NativeWindowsBackend();
       await backend.setPassword(
         "test-service",
         "test-account",
@@ -218,10 +220,10 @@ describeMacOS("NativeKeychainBackend", () => {
         throw new Error("Module not found");
       });
 
-      const { NativeKeychainBackend } = await import("./native-macos.js");
-      await NativeKeychainBackend.isSupported(); // Attempt to load module
+      const { NativeWindowsBackend } = await import("./native-windows.js");
+      await NativeWindowsBackend.isSupported(); // Attempt to load module
 
-      const backend = new NativeKeychainBackend();
+      const backend = new NativeWindowsBackend();
 
       await expect(
         backend.setPassword("test-service", "test-account", "test-password"),
@@ -237,14 +239,14 @@ describeMacOS("NativeKeychainBackend", () => {
         },
       }));
 
-      const { NativeKeychainBackend } = await import("./native-macos.js");
-      await NativeKeychainBackend.isSupported(); // Load module
+      const { NativeWindowsBackend } = await import("./native-windows.js");
+      await NativeWindowsBackend.isSupported(); // Load module
 
-      const backend = new NativeKeychainBackend();
+      const backend = new NativeWindowsBackend();
 
       await expect(
         backend.setPassword("test-service", "test-account", "test-password"),
-      ).rejects.toThrow("Native keychain error: Access denied");
+      ).rejects.toThrow("Native credential manager error: Access denied");
     });
 
     it("validates service identifier", async () => {
@@ -252,8 +254,8 @@ describeMacOS("NativeKeychainBackend", () => {
         Entry: class MockEntry {},
       }));
 
-      const { NativeKeychainBackend } = await import("./native-macos.js");
-      const backend = new NativeKeychainBackend();
+      const { NativeWindowsBackend } = await import("./native-windows.js");
+      const backend = new NativeWindowsBackend();
 
       await expect(
         backend.setPassword("", "test-account", "test-password"),
@@ -265,8 +267,8 @@ describeMacOS("NativeKeychainBackend", () => {
         Entry: class MockEntry {},
       }));
 
-      const { NativeKeychainBackend } = await import("./native-macos.js");
-      const backend = new NativeKeychainBackend();
+      const { NativeWindowsBackend } = await import("./native-windows.js");
+      const backend = new NativeWindowsBackend();
 
       await expect(
         backend.setPassword("test-service", "", "test-password"),
@@ -278,8 +280,8 @@ describeMacOS("NativeKeychainBackend", () => {
         Entry: class MockEntry {},
       }));
 
-      const { NativeKeychainBackend } = await import("./native-macos.js");
-      const backend = new NativeKeychainBackend();
+      const { NativeWindowsBackend } = await import("./native-windows.js");
+      const backend = new NativeWindowsBackend();
 
       await expect(
         backend.setPassword("test-service", "test-account", ""),
@@ -299,10 +301,10 @@ describeMacOS("NativeKeychainBackend", () => {
         },
       }));
 
-      const { NativeKeychainBackend } = await import("./native-macos.js");
-      await NativeKeychainBackend.isSupported(); // Load module
+      const { NativeWindowsBackend } = await import("./native-windows.js");
+      await NativeWindowsBackend.isSupported(); // Load module
 
-      const backend = new NativeKeychainBackend();
+      const backend = new NativeWindowsBackend();
       await backend.deletePassword("test-service", "test-account");
 
       expect(mockGetPassword).toHaveBeenCalled();
@@ -318,10 +320,10 @@ describeMacOS("NativeKeychainBackend", () => {
         },
       }));
 
-      const { NativeKeychainBackend } = await import("./native-macos.js");
-      await NativeKeychainBackend.isSupported(); // Load module
+      const { NativeWindowsBackend } = await import("./native-windows.js");
+      await NativeWindowsBackend.isSupported(); // Load module
 
-      const backend = new NativeKeychainBackend();
+      const backend = new NativeWindowsBackend();
 
       await expect(
         backend.deletePassword("test-service", "test-account"),
@@ -333,10 +335,10 @@ describeMacOS("NativeKeychainBackend", () => {
         throw new Error("Module not found");
       });
 
-      const { NativeKeychainBackend } = await import("./native-macos.js");
-      await NativeKeychainBackend.isSupported(); // Attempt to load module
+      const { NativeWindowsBackend } = await import("./native-windows.js");
+      await NativeWindowsBackend.isSupported(); // Attempt to load module
 
-      const backend = new NativeKeychainBackend();
+      const backend = new NativeWindowsBackend();
 
       await expect(
         backend.deletePassword("test-service", "test-account"),
@@ -355,14 +357,14 @@ describeMacOS("NativeKeychainBackend", () => {
         },
       }));
 
-      const { NativeKeychainBackend } = await import("./native-macos.js");
-      await NativeKeychainBackend.isSupported(); // Load module
+      const { NativeWindowsBackend } = await import("./native-windows.js");
+      await NativeWindowsBackend.isSupported(); // Load module
 
-      const backend = new NativeKeychainBackend();
+      const backend = new NativeWindowsBackend();
 
       await expect(
         backend.deletePassword("test-service", "test-account"),
-      ).rejects.toThrow("Native keychain error: Access denied");
+      ).rejects.toThrow("Native credential manager error: Access denied");
     });
 
     it("validates service identifier", async () => {
@@ -370,8 +372,8 @@ describeMacOS("NativeKeychainBackend", () => {
         Entry: class MockEntry {},
       }));
 
-      const { NativeKeychainBackend } = await import("./native-macos.js");
-      const backend = new NativeKeychainBackend();
+      const { NativeWindowsBackend } = await import("./native-windows.js");
+      const backend = new NativeWindowsBackend();
 
       await expect(backend.deletePassword("", "test-account")).rejects.toThrow(
         "service cannot be empty",
@@ -383,8 +385,8 @@ describeMacOS("NativeKeychainBackend", () => {
         Entry: class MockEntry {},
       }));
 
-      const { NativeKeychainBackend } = await import("./native-macos.js");
-      const backend = new NativeKeychainBackend();
+      const { NativeWindowsBackend } = await import("./native-windows.js");
+      const backend = new NativeWindowsBackend();
 
       await expect(backend.deletePassword("test-service", "")).rejects.toThrow(
         "account cannot be empty",
@@ -398,20 +400,20 @@ describeMacOS("NativeKeychainBackend", () => {
         Entry: class MockEntry {},
       }));
 
-      const { NativeKeychainBackend } = await import("./native-macos.js");
-      const { MacOSKeychainBackend } = await import("./macos.js");
+      const { NativeWindowsBackend } = await import("./native-windows.js");
+      const { WindowsCredentialBackend } = await import("./windows.js");
 
-      // Mock the MacOSKeychainBackend.isSupported
-      vi.spyOn(MacOSKeychainBackend, "isSupported").mockResolvedValue(true);
+      // Mock the WindowsCredentialBackend.isSupported
+      vi.spyOn(WindowsCredentialBackend, "isSupported").mockResolvedValue(true);
 
-      const backend = new NativeKeychainBackend();
+      const backend = new NativeWindowsBackend();
       const info = await backend.diagnose();
 
       expect(info).toMatchObject({
-        id: "native-macos",
-        name: "Native macOS Keychain",
+        id: "native-windows",
+        name: "Native Windows Credential Manager",
         priority: 10,
-        implementation: "Native Security.framework bindings",
+        implementation: "Native DPAPI bindings",
         fallbackAvailable: true,
       });
     });
@@ -421,13 +423,15 @@ describeMacOS("NativeKeychainBackend", () => {
         Entry: class MockEntry {},
       }));
 
-      const { NativeKeychainBackend } = await import("./native-macos.js");
-      const { MacOSKeychainBackend } = await import("./macos.js");
+      const { NativeWindowsBackend } = await import("./native-windows.js");
+      const { WindowsCredentialBackend } = await import("./windows.js");
 
-      // Mock the MacOSKeychainBackend.isSupported
-      vi.spyOn(MacOSKeychainBackend, "isSupported").mockResolvedValue(false);
+      // Mock the WindowsCredentialBackend.isSupported
+      vi.spyOn(WindowsCredentialBackend, "isSupported").mockResolvedValue(
+        false,
+      );
 
-      const backend = new NativeKeychainBackend();
+      const backend = new NativeWindowsBackend();
       const info = await backend.diagnose();
 
       expect(info.fallbackAvailable).toBe(false);
@@ -435,13 +439,13 @@ describeMacOS("NativeKeychainBackend", () => {
   });
 
   describe("lookupUsernames", () => {
-    it("returns empty array (not implemented)", async () => {
+    it("returns empty array (not supported by native backend)", async () => {
       vi.doMock("@napi-rs/keyring", () => ({
         Entry: class MockEntry {},
       }));
 
-      const { NativeKeychainBackend } = await import("./native-macos.js");
-      const backend = new NativeKeychainBackend();
+      const { NativeWindowsBackend } = await import("./native-windows.js");
+      const backend = new NativeWindowsBackend();
       const result = await backend["lookupUsernames"]("test-service");
 
       expect(result).toEqual([]);
@@ -458,14 +462,14 @@ describeMacOS("NativeKeychainBackend", () => {
         },
       }));
 
-      const { NativeKeychainBackend } = await import("./native-macos.js");
-      await NativeKeychainBackend.isSupported(); // Load module
+      const { NativeWindowsBackend } = await import("./native-windows.js");
+      await NativeWindowsBackend.isSupported(); // Load module
 
-      const backend = new NativeKeychainBackend();
+      const backend = new NativeWindowsBackend();
 
       await expect(
         backend.getPassword("test-service", "test-account"),
-      ).rejects.toThrow("Native keychain error: string error");
+      ).rejects.toThrow("Native credential manager error: string error");
     });
 
     it("handles errors with 'not exist' message", async () => {
@@ -477,130 +481,13 @@ describeMacOS("NativeKeychainBackend", () => {
         },
       }));
 
-      const { NativeKeychainBackend } = await import("./native-macos.js");
-      await NativeKeychainBackend.isSupported(); // Load module
+      const { NativeWindowsBackend } = await import("./native-windows.js");
+      await NativeWindowsBackend.isSupported(); // Load module
 
-      const backend = new NativeKeychainBackend();
+      const backend = new NativeWindowsBackend();
       const result = await backend.getPassword("test-service", "test-account");
 
       expect(result).toBeNull();
-    });
-  });
-
-  describe("getCredential with lookupUsernames", () => {
-    it("returns credential when findCredentials returns results", async () => {
-      vi.doMock("@napi-rs/keyring", () => ({
-        Entry: class MockEntry {
-          private service: string;
-          private account: string;
-
-          constructor(service: string, account: string) {
-            this.service = service;
-            this.account = account;
-          }
-
-          getPassword() {
-            if (this.account === "user1") {
-              return "password1";
-            }
-            return null;
-          }
-        },
-        findCredentials: (service: string) => {
-          if (service === "github") {
-            return [
-              { account: "user1", password: "password1" },
-              { account: "user2", password: "password2" },
-            ];
-          }
-          return [];
-        },
-      }));
-
-      const { NativeKeychainBackend } = await import("./native-macos.js");
-      await NativeKeychainBackend.isSupported();
-
-      const backend = new NativeKeychainBackend();
-      const result = await backend.getCredential("github");
-
-      expect(result).toEqual({ username: "user1", password: "password1" });
-    });
-
-    it("returns null when findCredentials returns empty array", async () => {
-      vi.doMock("@napi-rs/keyring", () => ({
-        Entry: class MockEntry {},
-        findCredentials: () => [],
-      }));
-
-      const { NativeKeychainBackend } = await import("./native-macos.js");
-      await NativeKeychainBackend.isSupported();
-
-      const backend = new NativeKeychainBackend();
-      const result = await backend.getCredential("nonexistent");
-
-      expect(result).toBeNull();
-    });
-
-    it("handles findCredentials errors gracefully", async () => {
-      vi.doMock("@napi-rs/keyring", () => ({
-        Entry: class MockEntry {},
-        findCredentials: () => {
-          throw new Error("findCredentials not supported");
-        },
-      }));
-
-      const { NativeKeychainBackend } = await import("./native-macos.js");
-      await NativeKeychainBackend.isSupported();
-
-      const backend = new NativeKeychainBackend();
-      const result = await backend.getCredential("service");
-
-      expect(result).toBeNull();
-    });
-  });
-
-  describe("additional error handling coverage", () => {
-    it("handles non-Error thrown objects in setPassword", async () => {
-      vi.doMock("@napi-rs/keyring", () => ({
-        Entry: class MockEntry {
-          setPassword() {
-            throw "string error in setPassword";
-          }
-        },
-      }));
-
-      const { NativeKeychainBackend } = await import("./native-macos.js");
-      await NativeKeychainBackend.isSupported();
-
-      const backend = new NativeKeychainBackend();
-
-      await expect(
-        backend.setPassword("test-service", "test-account", "password"),
-      ).rejects.toThrow("Native keychain error: string error in setPassword");
-    });
-
-    it("handles non-Error thrown objects in deletePassword", async () => {
-      const mockGetPassword = vi.fn().mockReturnValue("existing-password");
-
-      vi.doMock("@napi-rs/keyring", () => ({
-        Entry: class MockEntry {
-          getPassword = mockGetPassword;
-          deletePassword() {
-            throw "string error in deletePassword";
-          }
-        },
-      }));
-
-      const { NativeKeychainBackend } = await import("./native-macos.js");
-      await NativeKeychainBackend.isSupported();
-
-      const backend = new NativeKeychainBackend();
-
-      await expect(
-        backend.deletePassword("test-service", "test-account"),
-      ).rejects.toThrow(
-        "Native keychain error: string error in deletePassword",
-      );
     });
   });
 });

@@ -17,6 +17,8 @@ import {
   __resetRegistryForTests,
 } from "./registry.js";
 import { NativeKeychainBackend } from "./backends/native-macos.js";
+import { NativeWindowsBackend } from "./backends/native-windows.js";
+import { NativeLinuxBackend } from "./backends/native-linux.js";
 import { MacOSKeychainBackend } from "./backends/macos.js";
 import { SecretServiceBackend } from "./backends/linux.js";
 import { WindowsCredentialBackend } from "./backends/windows.js";
@@ -50,6 +52,8 @@ interface TestingExports {
   executableExists: typeof runtime.executableExists;
   runPowerShell: typeof runtime.runPowerShell;
   NativeKeychainBackend: typeof NativeKeychainBackend;
+  NativeWindowsBackend: typeof NativeWindowsBackend;
+  NativeLinuxBackend: typeof NativeLinuxBackend;
   MacOSKeychainBackend: typeof MacOSKeychainBackend;
   SecretServiceBackend: typeof SecretServiceBackend;
   WindowsCredentialBackend: typeof WindowsCredentialBackend;
@@ -62,6 +66,8 @@ const testingExports = {
   executableExists: runtime.executableExists,
   runPowerShell: runtime.runPowerShell,
   NativeKeychainBackend,
+  NativeWindowsBackend,
+  NativeLinuxBackend,
   MacOSKeychainBackend,
   SecretServiceBackend,
   WindowsCredentialBackend,

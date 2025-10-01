@@ -365,24 +365,26 @@ Environment property overrides (`KEYRING_PROPERTY_*`) always take precedence ove
 
 ## Platform Support
 
-- **Windows**: Uses Windows Credential Manager via PowerShell
+- **Windows**: Uses native Windows Credential Manager bindings (via @napi-rs/keyring) with automatic fallback to PowerShell-based access
 - **macOS**: Uses native Security.framework bindings (via @napi-rs/keyring) with automatic fallback to CLI-based Keychain Access
-- **Linux**: Uses Secret Service API (GNOME Keyring, KDE Wallet) via secret-tool
+- **Linux**: Uses native Secret Service API bindings (via @napi-rs/keyring) with automatic fallback to secret-tool
 
 ### Backend Priority System
 
 cross-keychain uses a priority-based system to automatically select the best available backend:
 
-| Backend                    | Platform | Priority | Method                      | Security                                                 |
-| -------------------------- | -------- | -------- | --------------------------- | -------------------------------------------------------- |
-| Native macOS Keychain      | macOS    | 10       | Security.framework bindings | ✅ Highest - Direct API access, no password exposure     |
-| macOS Keychain (CLI)       | macOS    | 5        | `security` command          | ✅ High - OS keychain, passwords visible in process list |
-| Windows Credential Manager | Windows  | 5        | PowerShell DPAPI            | ✅ High - OS credential manager                          |
-| Linux Secret Service       | Linux    | 5        | `secret-tool`               | ✅ High - OS keyring service                             |
-| File Backend               | All      | 0.5      | Encrypted JSON file         | ⚠️ Limited - AES-256-GCM encrypted, file-based           |
-| Null Backend               | All      | -1       | No storage                  | ❌ None - Disabled                                       |
+| Backend                               | Platform | Priority | Method                      | Security                                        |
+| ------------------------------------- | -------- | -------- | --------------------------- | ----------------------------------------------- |
+| Native macOS Keychain                 | macOS    | 10       | Security.framework bindings | ✅ Highest - Direct API access                  |
+| Native Windows Credential Manager     | Windows  | 10       | Native DPAPI bindings       | ✅ Highest - Direct API access                  |
+| Native Linux Secret Service           | Linux    | 10       | Native DBus bindings        | ✅ Highest - Direct API access                  |
+| macOS Keychain (CLI Fallback)         | macOS    | 5        | `security` command          | ✅ High - OS keychain, password in process list |
+| Windows Credential Manager (Fallback) | Windows  | 5        | PowerShell DPAPI            | ✅ High - OS credential manager                 |
+| Linux Secret Service (Fallback)       | Linux    | 4.8      | `secret-tool`               | ✅ High - OS keyring service                    |
+| File Backend                          | All      | 0.5      | Encrypted JSON file         | ⚠️ Limited - AES-256-GCM encrypted, file-based  |
+| Null Backend                          | All      | -1       | No storage                  | ❌ None - Disabled                              |
 
-The native macOS backend uses @napi-rs/keyring (installed as an optional dependency) for direct Security.framework access, eliminating password exposure in process lists that occurs with CLI-based approaches.
+The native backends (macOS, Windows, and Linux) use @napi-rs/keyring (installed as an optional dependency) for direct API access through native bindings, providing the highest security and performance. These backends eliminate password exposure in process lists and shell command injection risks that can occur with CLI-based approaches. If the native module is not available, the library automatically falls back to shell-based backends.
 
 ## Security Considerations
 

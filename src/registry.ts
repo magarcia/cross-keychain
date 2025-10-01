@@ -6,6 +6,8 @@ import type {
 } from "./types.js";
 import { readConfig } from "./config.js";
 import { NativeKeychainBackend } from "./backends/native-macos.js";
+import { NativeWindowsBackend } from "./backends/native-windows.js";
+import { NativeLinuxBackend } from "./backends/native-linux.js";
 import { MacOSKeychainBackend } from "./backends/macos.js";
 import { SecretServiceBackend } from "./backends/linux.js";
 import { WindowsCredentialBackend } from "./backends/windows.js";
@@ -20,6 +22,8 @@ let backendLimit: BackendLimit | undefined;
 
 const builtinFactories: BackendFactory[] = [
   NativeKeychainBackend,
+  NativeWindowsBackend,
+  NativeLinuxBackend,
   MacOSKeychainBackend,
   SecretServiceBackend,
   WindowsCredentialBackend,

@@ -81,6 +81,37 @@ describe("runtime helpers", () => {
     await expect(promise).rejects.toBe(error);
   });
 
+  it("kills the process and rejects on timeout", async () => {
+    const child = new EventEmitter() as EventEmitter & {
+      stdout: EventEmitter;
+      stderr: EventEmitter;
+      stdin: { end: ReturnType<typeof vi.fn> };
+      kill: ReturnType<typeof vi.fn>;
+    };
+    child.stdout = new EventEmitter();
+    child.stderr = new EventEmitter();
+    child.stdin = { end: vi.fn() };
+    child.kill = vi.fn();
+    spawnMock.mockReturnValue(child as unknown as ChildProcess);
+
+    const { __testing } = await import("./runtime.js");
+
+    const promise = __testing.runCommand("slow-command", [], {
+      timeoutMs: 100,
+    });
+
+    // Catch the promise immediately to avoid unhandled rejection warnings
+    const expectPromise = expect(promise).rejects.toThrow(
+      "Command timed out after 100ms: slow-command",
+    );
+
+    // Wait for timeout to trigger
+    await new Promise((resolve) => setTimeout(resolve, 150));
+
+    await expectPromise;
+    expect(child.kill).toHaveBeenCalledWith("SIGKILL");
+  });
+
   it("returns false when PATH is empty", async () => {
     process.env.PATH = "";
     const { __testing } = await import("./runtime.js");

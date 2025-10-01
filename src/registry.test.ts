@@ -212,6 +212,60 @@ describe("backend registry", () => {
       process.env.TS_KEYRING_BACKEND = "missing";
       await expect(mod.initBackend()).rejects.toBeInstanceOf(errors.InitError);
     });
+
+    it("loads backend from environment variable when valid", async () => {
+      process.env.TS_KEYRING_BACKEND = "null";
+      await mod.initBackend();
+      const backend = await mod.getKeyring();
+      expect(backend.id).toBe("null");
+    });
+
+    it("loads backend from config file", async () => {
+      const configMod = await import("./config.js");
+      vi.spyOn(configMod, "readConfig").mockResolvedValue({
+        defaultBackend: "null",
+        backendProperties: {},
+      });
+
+      await mod.initBackend();
+      const backend = await mod.getKeyring();
+      expect(backend.id).toBe("null");
+    });
+
+    it("loads backend from config file with properties", async () => {
+      const configMod = await import("./config.js");
+      vi.spyOn(configMod, "readConfig").mockResolvedValue({
+        defaultBackend: "file",
+        backendProperties: {
+          file: { file_path: "/custom/path.json" },
+        },
+      });
+
+      await mod.initBackend();
+      const backend = await mod.getKeyring();
+      expect(backend.id).toBe("file");
+    });
+
+    it("ignores config file when it does not exist", async () => {
+      const configMod = await import("./config.js");
+      const error = new Error("File not found") as NodeJS.ErrnoException;
+      error.code = "ENOENT";
+      vi.spyOn(configMod, "readConfig").mockRejectedValue(error);
+
+      await mod.initBackend();
+      const backend = await mod.getKeyring();
+      // Should fall back to platform detection
+      expect(backend).toBeDefined();
+    });
+
+    it("propagates config file errors other than ENOENT", async () => {
+      const configMod = await import("./config.js");
+      const error = new Error("Permission denied") as NodeJS.ErrnoException;
+      error.code = "EACCES";
+      vi.spyOn(configMod, "readConfig").mockRejectedValue(error);
+
+      await expect(mod.initBackend()).rejects.toThrow("Permission denied");
+    });
   });
 
   describe("loadBackendById", () => {
