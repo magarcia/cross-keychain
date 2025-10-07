@@ -1,3 +1,8 @@
+## 1.1.0 (2025-10-07)
+
+- chore(deps): update outdated dependencies to latest versions (#4) ([7abfb10](https://github.com/magarcia/cross-keychain/commit/7abfb10)), closes [#4](https://github.com/magarcia/cross-keychain/issues/4)
+- feat: add native Windows and Linux backends with automatic fallback ([a32202b](https://github.com/magarcia/cross-keychain/commit/a32202b))
+
 ## <small>1.0.1 (2025-09-30)</small>
 
 - fix: add public access to npm publish config ([015bfc1](https://github.com/magarcia/cross-keychain/commit/015bfc1))
