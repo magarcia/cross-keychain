@@ -382,6 +382,15 @@ describe("ConfigurableBackend", () => {
       );
     });
 
+    it("uses maxPasswordLength from backend properties", () => {
+      const backend = new TestBackend({ maxPasswordLength: 9 });
+
+      expect(() => backend.testValidatePassword("a".repeat(9))).not.toThrow();
+      expect(() => backend.testValidatePassword("a".repeat(10))).toThrow(
+        "Password exceeds maximum length of 9 characters",
+      );
+    });
+
     it("uses KEYRING_PROPERTY_MAX_PASSWORD_LENGTH override", () => {
       process.env.KEYRING_PROPERTY_MAX_PASSWORD_LENGTH = "10";
       const backend = new TestBackend({ max_password_length: 8 });
