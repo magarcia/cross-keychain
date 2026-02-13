@@ -219,7 +219,9 @@ export KEYRING_PROPERTY_APPID="my-custom-app"  # Alternative name
 export KEYRING_PROPERTY_COLLECTION="my-collection"
 export KEYRING_PROPERTY_PREFERRED_COLLECTION="my-collection"  # Alternative name
 
-# Windows: Set credential persistence level
+# Windows (PowerShell fallback): Set credential persistence level
+# Use "enterprise" for roaming credentials across managed PCs,
+# or "local" to keep credentials machine-local.
 export KEYRING_PROPERTY_PERSIST="local"  # or "session", "enterprise"
 ```
 
@@ -327,11 +329,13 @@ Keyring uses a JSON configuration file for persistent settings:
 
 #### Windows Credential Manager Backend Properties
 
-- **`persist`** (`string` | `number`): Credential persistence level
+- **`persist`** (`string` | `number`): Credential persistence level (PowerShell fallback backend)
   - **`"session"` / `1`**: Credentials are deleted when the user logs off
-  - **`"local"` / `2`**: Credentials persist until explicitly deleted (default)
-  - **`"enterprise"` / `3`**: Credentials roam with the user profile
+  - **`"local"` / `2`**: Credentials persist until explicitly deleted on the current machine
+  - **`"enterprise"` / `3`**: Credentials roam with the user's profile across managed/domain-joined machines (**current fallback default**)
   - Custom numeric values are also supported
+
+**Roaming note:** The Windows PowerShell fallback currently defaults to `enterprise` persistence to support users who switch PCs frequently. If you prefer tighter machine-local scope, set `persist` to `local` explicitly.
 
 ### disable() Function
 
@@ -425,6 +429,7 @@ These backends use your operating system's built-in credential management and pr
 - Uses PowerShell with Windows Credential API calls (CredRead/CredWrite/CredDelete)
 - ⚠️ **Security caveat**: Secret material may be briefly visible in process command lines during operations
 - Same underlying OS credential manager and DPAPI protections as native backend
+- **Default persistence in fallback is `enterprise`** (roaming profile credentials); set `persist=local` if you want machine-local scope
 - Automatically selected when native module cannot be loaded
 
 **🔒 Linux Secret Service**
