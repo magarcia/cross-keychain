@@ -373,16 +373,16 @@ Environment property overrides (`KEYRING_PROPERTY_*`) always take precedence ove
 
 cross-keychain uses a priority-based system to automatically select the best available backend:
 
-| Backend                               | Platform | Priority | Method                      | Security                                        |
-| ------------------------------------- | -------- | -------- | --------------------------- | ----------------------------------------------- |
-| Native macOS Keychain                 | macOS    | 10       | Security.framework bindings | ✅ Highest - Direct API access                  |
-| Native Windows Credential Manager     | Windows  | 10       | Native DPAPI bindings       | ✅ Highest - Direct API access                  |
-| Native Linux Secret Service           | Linux    | 10       | Native DBus bindings        | ✅ Highest - Direct API access                  |
-| macOS Keychain (CLI Fallback)         | macOS    | 5        | `security` command          | ✅ High - OS keychain, password in process list |
-| Windows Credential Manager (Fallback) | Windows  | 5        | PowerShell DPAPI            | ✅ High - OS credential manager                 |
-| Linux Secret Service (Fallback)       | Linux    | 4.8      | `secret-tool`               | ✅ High - OS keyring service                    |
-| File Backend                          | All      | 0.5      | Encrypted JSON file         | ⚠️ Limited - AES-256-GCM encrypted, file-based  |
-| Null Backend                          | All      | -1       | No storage                  | ❌ None - Disabled                              |
+| Backend                               | Platform | Priority | Method                      | Security                                                |
+| ------------------------------------- | -------- | -------- | --------------------------- | ------------------------------------------------------- |
+| Native macOS Keychain                 | macOS    | 10       | Security.framework bindings | ✅ Highest - Direct API access                          |
+| Native Windows Credential Manager     | Windows  | 10       | Native DPAPI bindings       | ✅ Highest - Direct API access                          |
+| Native Linux Secret Service           | Linux    | 10       | Native DBus bindings        | ✅ Highest - Direct API access                          |
+| macOS Keychain (CLI Fallback)         | macOS    | 5        | `security` command          | ✅ High - OS keychain, password in process list         |
+| Windows Credential Manager (Fallback) | Windows  | 5        | PowerShell DPAPI            | ⚠️ High - OS credential manager, script in process list |
+| Linux Secret Service (Fallback)       | Linux    | 4.8      | `secret-tool`               | ✅ High - OS keyring service                            |
+| File Backend                          | All      | 0.5      | Encrypted JSON file         | ⚠️ Limited - AES-256-GCM encrypted, file-based          |
+| Null Backend                          | All      | -1       | No storage                  | ❌ None - Disabled                                      |
 
 The native backends (macOS, Windows, and Linux) use @napi-rs/keyring (installed as an optional dependency) for direct API access through native bindings, providing the highest security and performance. These backends eliminate password exposure in process lists and shell command injection risks that can occur with CLI-based approaches. If the native module is not available, the library automatically falls back to shell-based backends.
 
@@ -413,12 +413,19 @@ These backends use your operating system's built-in credential management and pr
 - Same encryption and access controls as native backend
 - Automatically selected when native module cannot be loaded
 
-**🔒 Windows Credential Manager**
+**🔒 Windows Credential Manager (Native)**
 
-- Uses DPAPI (Data Protection API) encryption tied to your user account
+- Uses DPAPI (Data Protection API) encryption tied to your user account via @napi-rs/keyring bindings
 - Integrates with Windows security policies and Windows Hello
 - Automatic encryption/decryption handled by the OS
 - Access restricted to your user account only
+
+**🔒 Windows Credential Manager (Fallback - PowerShell)**
+
+- Uses PowerShell with Windows Credential API calls (CredRead/CredWrite/CredDelete)
+- ⚠️ **Security caveat**: Secret material may be briefly visible in process command lines during operations
+- Same underlying OS credential manager and DPAPI protections as native backend
+- Automatically selected when native module cannot be loaded
 
 **🔒 Linux Secret Service**
 
