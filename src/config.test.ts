@@ -260,6 +260,18 @@ describe("Config utilities", () => {
       expect(result.backendProperties).toBeUndefined();
     });
 
+    it("parses configuration with allowInsecureFallbacks flag", async () => {
+      const mockConfig: KeyringConfig = {
+        allowInsecureFallbacks: true,
+      };
+      vi.spyOn(fs, "readFile").mockResolvedValue(JSON.stringify(mockConfig));
+
+      const result = await readConfig();
+
+      expect(result).toEqual(mockConfig);
+      expect(result.allowInsecureFallbacks).toBe(true);
+    });
+
     it("parses configuration with only backendProperties", async () => {
       const mockConfig: KeyringConfig = {
         backendProperties: {

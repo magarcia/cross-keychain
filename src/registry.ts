@@ -3,6 +3,7 @@ import type {
   SecretStorageBackend,
   BackendFactory,
   BackendLimit,
+  KeyringConfig,
 } from "./types.js";
 import { readConfig } from "./config.js";
 import { NativeKeychainBackend } from "./backends/native-macos.js";
@@ -15,6 +16,14 @@ import { FileSystemBackend } from "./backends/file.js";
 import { NullBackend } from "./backends/null.js";
 
 const ENV_BACKEND = "TS_KEYRING_BACKEND";
+const ENV_ALLOW_INSECURE_FALLBACKS = "TS_KEYRING_ALLOW_INSECURE_FALLBACKS";
+
+const insecureFallbackBackendIds = new Set([
+  "macos",
+  "secret-service",
+  "windows",
+  "file",
+]);
 
 let cachedBackends: SecretStorageBackend[] | undefined;
 let activeBackend: SecretStorageBackend | undefined;
@@ -48,6 +57,45 @@ async function instantiate(
     }
     throw error;
   }
+}
+
+function parseBooleanEnv(name: string): boolean | undefined {
+  const value = process.env[name];
+  if (value === undefined) {
+    return undefined;
+  }
+
+  const normalized = value.trim().toLowerCase();
+  if (["1", "true", "yes", "on"].includes(normalized)) {
+    return true;
+  }
+  if (["0", "false", "no", "off"].includes(normalized)) {
+    return false;
+  }
+  return undefined;
+}
+
+function isInsecureFallbackBackend(backend: SecretStorageBackend): boolean {
+  return insecureFallbackBackendIds.has(backend.id);
+}
+
+async function readConfigIfExists(): Promise<KeyringConfig | null> {
+  try {
+    return await readConfig();
+  } catch (error: unknown) {
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") {
+      return null;
+    }
+    throw error;
+  }
+}
+
+function shouldAllowInsecureFallbacks(config: KeyringConfig | null): boolean {
+  const fromEnv = parseBooleanEnv(ENV_ALLOW_INSECURE_FALLBACKS);
+  if (fromEnv !== undefined) {
+    return fromEnv;
+  }
+  return config?.allowInsecureFallbacks === true;
 }
 
 /**
@@ -99,7 +147,7 @@ export function setKeyring(backend: SecretStorageBackend): void {
 /**
  * Returns the currently active keyring backend.
  * If no backend is active, initializes one using automatic detection.
- * Detection order: environment variable, config file, platform detection.
+ * Detection order: environment variable, config file, secure backend auto-detection.
  *
  * @returns The active backend instance
  * @throws {NoKeyringError} If no backend can be initialized
@@ -118,14 +166,21 @@ export async function getKeyring(): Promise<SecretStorageBackend> {
  * Initializes the active backend using automatic detection.
  * Detection order: environment variable (TS_KEYRING_BACKEND), config file, platform detection.
  *
+ * By default, auto-detection only selects native (secure) backends.
+ * Insecure fallback backends can be opt-in via TS_KEYRING_ALLOW_INSECURE_FALLBACKS=1
+ * or allowInsecureFallbacks=true in keyring.config.json.
+ *
  * @param limit - Optional filter function to restrict which backends are allowed
  */
 export async function initBackend(limit?: BackendLimit): Promise<void> {
   backendLimit = limit;
+  const config = await readConfigIfExists();
+  const allowInsecureFallbacks = shouldAllowInsecureFallbacks(config);
+
   const backend =
     (await loadBackendFromEnv(limit)) ||
-    (await loadBackendFromConfig(limit)) ||
-    (await detectBackend(limit));
+    (await loadBackendFromConfig(config, limit)) ||
+    (await detectBackend(limit, allowInsecureFallbacks));
   activeBackend = backend;
 }
 
@@ -146,24 +201,18 @@ async function loadBackendFromEnv(
 }
 
 async function loadBackendFromConfig(
+  config: KeyringConfig | null,
   limit?: BackendLimit,
 ): Promise<SecretStorageBackend | null> {
-  try {
-    const config = await readConfig();
-    if (!config.defaultBackend) {
-      return null;
-    }
-    return loadBackendById(
-      config.defaultBackend,
-      limit,
-      config.backendProperties?.[config.defaultBackend],
-    );
-  } catch (error: unknown) {
-    if ((error as NodeJS.ErrnoException).code === "ENOENT") {
-      return null;
-    }
-    throw error;
+  if (!config?.defaultBackend) {
+    return null;
   }
+
+  return loadBackendById(
+    config.defaultBackend,
+    limit,
+    config.backendProperties?.[config.defaultBackend],
+  );
 }
 
 /**
@@ -192,14 +241,31 @@ export async function loadBackendById(
 }
 
 async function detectBackend(
-  limit?: BackendLimit,
+  limit: BackendLimit | undefined,
+  allowInsecureFallbacks: boolean,
 ): Promise<SecretStorageBackend> {
   const backends = await getAllBackends();
-  const filtered = limit ? backends.filter(limit) : backends;
+  const filtered = (limit ? backends.filter(limit) : backends).filter(
+    (backend) => backend.id !== "null",
+  );
+
   if (!filtered.length) {
     return new NullBackend();
   }
-  return filtered.reduce((selected, candidate) =>
+
+  const secureBackends = filtered.filter(
+    (backend) => !isInsecureFallbackBackend(backend),
+  );
+
+  const candidates = allowInsecureFallbacks ? filtered : secureBackends;
+
+  if (!candidates.length) {
+    throw new InitError(
+      "No secure keyring backend is available. Install native backends or set TS_KEYRING_ALLOW_INSECURE_FALLBACKS=1 (or allowInsecureFallbacks=true in keyring.config.json) to allow fallback backends.",
+    );
+  }
+
+  return candidates.reduce((selected, candidate) =>
     candidate.priority > selected.priority ? candidate : selected,
   );
 }
