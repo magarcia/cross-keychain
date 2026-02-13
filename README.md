@@ -215,6 +215,11 @@ export TS_KEYRING_ALLOW_INSECURE_FALLBACKS=1
 When this variable is not set, auto-detection defaults to secure-only behavior.
 If no native backend is available in that mode, initialization fails with an `InitError` explaining how to opt in to fallback backends.
 
+**Important:** This policy applies to **auto-detection only**. Explicit backend selection still works:
+
+- `TS_KEYRING_BACKEND=<backend-id>`
+- `defaultBackend` in `keyring.config.json`
+
 #### Backend Property Overrides
 
 **`KEYRING_PROPERTY_*`** - Override backend-specific properties:
@@ -394,6 +399,8 @@ Auto-detection fallback policy priority:
 1. **Environment variable:** `TS_KEYRING_ALLOW_INSECURE_FALLBACKS`
 2. **Configuration file:** `allowInsecureFallbacks`
 3. **Default:** `false` (do not use insecure fallbacks)
+
+This fallback policy does not block explicit backend choices (`TS_KEYRING_BACKEND` / `defaultBackend`).
 
 Environment property overrides (`KEYRING_PROPERTY_*`) always take precedence over configuration file settings.
 
