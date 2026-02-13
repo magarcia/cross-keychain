@@ -439,6 +439,17 @@ These backends use your operating system's built-in credential management and pr
 - Access restricted to your current user session
 - Supports multiple keyrings and collections
 
+### ⚠️ Fallback Command Resolution Caveat (PATH)
+
+CLI-based fallback backends invoke external commands by executable name (`security`, `secret-tool`, `powershell`/`pwsh`).
+If the process `PATH` is compromised or untrusted, a malicious executable with the same name could be run.
+
+**Mitigations:**
+
+- Prefer native backends in production
+- Run in trusted environments with controlled `PATH`
+- Avoid untrusted shell/profile scripts that modify `PATH`
+
 ### ⚠️ File Backend - LIMITED SECURITY
 
 **WARNING**: The file backend provides encryption but has significant limitations compared to OS backends.
