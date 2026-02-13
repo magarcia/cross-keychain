@@ -38,6 +38,7 @@ beforeEach(() => {
 afterEach(() => {
   vi.restoreAllMocks();
   delete process.env.KEYRING_PROPERTY_FILE_PATH;
+  delete process.env.KEYRING_PROPERTY_MAX_PASSWORD_LENGTH;
   delete process.env.TS_KEYRING_BACKEND;
 });
 
@@ -776,5 +777,30 @@ describe("Security: Password Validation", () => {
     await expect(
       setPassword("service", "user2", tooLongPassword),
     ).rejects.toThrow(KeyringError);
+  });
+
+  it("should support custom max_password_length", async () => {
+    const storePath = await createTempFile("store.json");
+    await useBackend("file", { file_path: storePath, max_password_length: 12 });
+
+    const maxPassword = "a".repeat(12);
+    await setPassword("service", "user", maxPassword);
+    expect(await getPassword("service", "user")).toBe(maxPassword);
+
+    await expect(
+      setPassword("service", "user2", "a".repeat(13)),
+    ).rejects.toThrow("Password exceeds maximum length of 12 characters");
+  });
+
+  it("should allow KEYRING_PROPERTY_MAX_PASSWORD_LENGTH to override config", async () => {
+    process.env.KEYRING_PROPERTY_MAX_PASSWORD_LENGTH = "6";
+
+    const storePath = await createTempFile("store.json");
+    await useBackend("file", { file_path: storePath, max_password_length: 12 });
+
+    await setPassword("service", "user", "a".repeat(6));
+    await expect(
+      setPassword("service", "user2", "a".repeat(7)),
+    ).rejects.toThrow("Password exceeds maximum length of 6 characters");
   });
 });

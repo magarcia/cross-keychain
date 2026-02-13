@@ -7,6 +7,7 @@ import type {
 } from "./types.js";
 
 const ENV_PROPERTY_PREFIX = "KEYRING_PROPERTY_";
+const DEFAULT_MAX_PASSWORD_LENGTH = 4096;
 
 /**
  * Abstract base class for all keyring backends.
@@ -158,10 +159,34 @@ export abstract class ConfigurableBackend implements SecretStorageBackend {
       throw new KeyringError("Password cannot be empty");
     }
 
-    if (normalized.length > 4096) {
+    const maxPasswordLength = this.maxPasswordLength;
+    if (normalized.length > maxPasswordLength) {
       throw new KeyringError(
-        "Password exceeds maximum length of 4096 characters",
+        `Password exceeds maximum length of ${maxPasswordLength} characters`,
       );
     }
+  }
+
+  private get maxPasswordLength(): number {
+    const value =
+      this.properties["max_password_length"] ??
+      this.properties["maxPasswordLength"];
+
+    if (value === undefined) {
+      return DEFAULT_MAX_PASSWORD_LENGTH;
+    }
+
+    let parsedValue = Number.NaN;
+    if (typeof value === "number" && Number.isFinite(value)) {
+      parsedValue = value;
+    } else if (typeof value === "string" && value.trim().length > 0) {
+      parsedValue = Number(value);
+    }
+
+    if (!Number.isInteger(parsedValue) || parsedValue < 1) {
+      throw new KeyringError("max_password_length must be a positive integer");
+    }
+
+    return parsedValue;
   }
 }
