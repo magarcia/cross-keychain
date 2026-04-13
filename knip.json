@@ -1,12 +1,7 @@
 {
   "$schema": "https://unpkg.com/knip@5/schema.json",
   "project": ["src/**/*.ts"],
-  "ignore": ["dist/**", "node_modules/**"],
-  "ignoreDependencies": [
-    "@semantic-release/github",
-    "@typescript-eslint/eslint-plugin",
-    "@typescript-eslint/parser"
-  ],
+  "ignoreDependencies": ["@semantic-release/github"],
   "ignoreExportsUsedInFile": true,
   "eslint": true,
   "prettier": true,
