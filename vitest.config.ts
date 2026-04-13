@@ -5,7 +5,8 @@ export default defineConfig({
     globals: true,
     testTimeout: 5000,
     coverage: {
-      provider: "istanbul", // or 'v8'
+      provider: "v8",
+      reporter: ["text", "json", "html"],
     },
   },
 });
