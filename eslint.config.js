@@ -5,9 +5,11 @@ import tseslint from "typescript-eslint";
 
 export default [
   {
+    name: "cross-keychain/ignores",
     ignores: ["dist", "coverage"],
   },
   {
+    name: "cross-keychain/base",
     languageOptions: {
       globals: {
         ...globals.node,
@@ -16,6 +18,7 @@ export default [
   },
   ...tseslint.configs.recommended,
   {
+    name: "cross-keychain/typescript",
     files: ["**/*.ts"],
     plugins: {
       jsdoc,
