@@ -23,7 +23,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          node-version: "22"
           cache: "npm"
 
       - name: Install dependencies
@@ -47,7 +47,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          node-version: "22"
           cache: "npm"
 
       - name: Install dependencies
@@ -65,19 +65,19 @@ jobs:
       matrix:
         include:
           - os: ubuntu-latest
-            node-version: 18
-            coverage: false
-          - os: ubuntu-latest
             node-version: 20
-            coverage: true
+            coverage: false
           - os: ubuntu-latest
             node-version: 22
+            coverage: true
+          - os: ubuntu-latest
+            node-version: 24
             coverage: false
           - os: macos-latest
-            node-version: 20
+            node-version: 22
             coverage: false
           - os: windows-latest
-            node-version: 20
+            node-version: 22
             coverage: false
 
     steps:
@@ -136,7 +136,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          node-version: "22"
           cache: "npm"
 
       - name: Install dependencies
@@ -164,7 +164,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          node-version: "22"
           cache: "npm"
 
       - name: Install dependencies
