@@ -25,7 +25,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          node-version: "22"
           cache: "npm"
 
       - name: Install dependencies
@@ -48,13 +48,13 @@ jobs:
         id: audit
         run: |
           echo "Running security audit..."
-          if npm run security; then
+          if npm audit --audit-level=moderate --omit=dev; then
             echo "vulnerable=false" >> $GITHUB_OUTPUT
             echo "No security vulnerabilities found"
           else
             echo "vulnerable=true" >> $GITHUB_OUTPUT
             echo "Security vulnerabilities found"
-            npm run security > security-audit.txt 2>&1 || true
+            npm audit --audit-level=moderate --omit=dev > security-audit.txt 2>&1 || true
           fi
 
       - name: Check for unused dependencies
