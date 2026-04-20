@@ -219,7 +219,9 @@ export KEYRING_PROPERTY_APPID="my-custom-app"  # Alternative name
 export KEYRING_PROPERTY_COLLECTION="my-collection"
 export KEYRING_PROPERTY_PREFERRED_COLLECTION="my-collection"  # Alternative name
 
-# Windows: Set credential persistence level
+# Windows (PowerShell fallback): Set credential persistence level
+# Use "enterprise" for roaming credentials across managed PCs,
+# or "local" to keep credentials machine-local.
 export KEYRING_PROPERTY_PERSIST="local"  # or "session", "enterprise"
 ```
 
@@ -327,11 +329,13 @@ Keyring uses a JSON configuration file for persistent settings:
 
 #### Windows Credential Manager Backend Properties
 
-- **`persist`** (`string` | `number`): Credential persistence level
+- **`persist`** (`string` | `number`): Credential persistence level (PowerShell fallback backend)
   - **`"session"` / `1`**: Credentials are deleted when the user logs off
-  - **`"local"` / `2`**: Credentials persist until explicitly deleted (default)
-  - **`"enterprise"` / `3`**: Credentials roam with the user profile
+  - **`"local"` / `2`**: Credentials persist until explicitly deleted on the current machine
+  - **`"enterprise"` / `3`**: Credentials roam with the user's profile across managed/domain-joined machines (**current fallback default**)
   - Custom numeric values are also supported
+
+**Roaming note:** The Windows PowerShell fallback currently defaults to `enterprise` persistence to support users who switch PCs frequently. If you prefer tighter machine-local scope, set `persist` to `local` explicitly.
 
 ### disable() Function
 
@@ -373,16 +377,16 @@ Environment property overrides (`KEYRING_PROPERTY_*`) always take precedence ove
 
 cross-keychain uses a priority-based system to automatically select the best available backend:
 
-| Backend                               | Platform | Priority | Method                      | Security                                        |
-| ------------------------------------- | -------- | -------- | --------------------------- | ----------------------------------------------- |
-| Native macOS Keychain                 | macOS    | 10       | Security.framework bindings | ✅ Highest - Direct API access                  |
-| Native Windows Credential Manager     | Windows  | 10       | Native DPAPI bindings       | ✅ Highest - Direct API access                  |
-| Native Linux Secret Service           | Linux    | 10       | Native DBus bindings        | ✅ Highest - Direct API access                  |
-| macOS Keychain (CLI Fallback)         | macOS    | 5        | `security` command          | ✅ High - OS keychain, password in process list |
-| Windows Credential Manager (Fallback) | Windows  | 5        | PowerShell DPAPI            | ✅ High - OS credential manager                 |
-| Linux Secret Service (Fallback)       | Linux    | 4.8      | `secret-tool`               | ✅ High - OS keyring service                    |
-| File Backend                          | All      | 0.5      | Encrypted JSON file         | ⚠️ Limited - AES-256-GCM encrypted, file-based  |
-| Null Backend                          | All      | -1       | No storage                  | ❌ None - Disabled                              |
+| Backend                               | Platform | Priority | Method                      | Security                                                |
+| ------------------------------------- | -------- | -------- | --------------------------- | ------------------------------------------------------- |
+| Native macOS Keychain                 | macOS    | 10       | Security.framework bindings | ✅ Highest - Direct API access                          |
+| Native Windows Credential Manager     | Windows  | 10       | Native DPAPI bindings       | ✅ Highest - Direct API access                          |
+| Native Linux Secret Service           | Linux    | 10       | Native DBus bindings        | ✅ Highest - Direct API access                          |
+| macOS Keychain (CLI Fallback)         | macOS    | 5        | `security` command          | ✅ High - OS keychain, password in process list         |
+| Windows Credential Manager (Fallback) | Windows  | 5        | PowerShell DPAPI            | ⚠️ High - OS credential manager, script in process list |
+| Linux Secret Service (Fallback)       | Linux    | 4.8      | `secret-tool`               | ✅ High - OS keyring service                            |
+| File Backend                          | All      | 0.5      | Encrypted JSON file         | ⚠️ Limited - AES-256-GCM encrypted, file-based          |
+| Null Backend                          | All      | -1       | No storage                  | ❌ None - Disabled                                      |
 
 The native backends (macOS, Windows, and Linux) use @napi-rs/keyring (installed as an optional dependency) for direct API access through native bindings, providing the highest security and performance. These backends eliminate password exposure in process lists and shell command injection risks that can occur with CLI-based approaches. If the native module is not available, the library automatically falls back to shell-based backends.
 
@@ -413,12 +417,20 @@ These backends use your operating system's built-in credential management and pr
 - Same encryption and access controls as native backend
 - Automatically selected when native module cannot be loaded
 
-**🔒 Windows Credential Manager**
+**🔒 Windows Credential Manager (Native)**
 
-- Uses DPAPI (Data Protection API) encryption tied to your user account
+- Uses DPAPI (Data Protection API) encryption tied to your user account via @napi-rs/keyring bindings
 - Integrates with Windows security policies and Windows Hello
 - Automatic encryption/decryption handled by the OS
 - Access restricted to your user account only
+
+**🔒 Windows Credential Manager (Fallback - PowerShell)**
+
+- Uses PowerShell with Windows Credential API calls (CredRead/CredWrite/CredDelete)
+- ⚠️ **Security caveat**: Secret material may be briefly visible in process command lines during operations
+- Same underlying OS credential manager and DPAPI protections as native backend
+- **Default persistence in fallback is `enterprise`** (roaming profile credentials); set `persist=local` if you want machine-local scope
+- Automatically selected when native module cannot be loaded
 
 **🔒 Linux Secret Service**
 
@@ -426,6 +438,17 @@ These backends use your operating system's built-in credential management and pr
 - Integrates with GNOME Keyring or KDE Wallet
 - Access restricted to your current user session
 - Supports multiple keyrings and collections
+
+### ⚠️ Fallback Command Resolution Caveat (PATH)
+
+CLI-based fallback backends invoke external commands by executable name (`security`, `secret-tool`, `powershell`/`pwsh`).
+If the process `PATH` is compromised or untrusted, a malicious executable with the same name could be run.
+
+**Mitigations:**
+
+- Prefer native backends in production
+- Run in trusted environments with controlled `PATH`
+- Avoid untrusted shell/profile scripts that modify `PATH`
 
 ### ⚠️ File Backend - LIMITED SECURITY
 
