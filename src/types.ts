@@ -114,6 +114,8 @@ export interface BackendInfo {
 export interface KeyringConfig {
   /** ID of the backend to use by default */
   defaultBackend?: string;
+  /** Allow auto-detection to use insecure fallback backends */
+  allowInsecureFallbacks?: boolean;
   /** Backend-specific configuration properties */
   backendProperties?: Record<string, Record<string, unknown>>;
 }

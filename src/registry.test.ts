@@ -7,48 +7,46 @@ describe("backend registry", () => {
   let backends: {
     NullBackend: typeof import("./backends/null.js").NullBackend;
     FileSystemBackend: typeof import("./backends/file.js").FileSystemBackend;
-    MacOSKeychainBackend: typeof import("./backends/macos.js").MacOSKeychainBackend;
-    SecretServiceBackend: typeof import("./backends/linux.js").SecretServiceBackend;
-    WindowsCredentialBackend: typeof import("./backends/windows.js").WindowsCredentialBackend;
     NativeKeychainBackend: typeof import("./backends/native-macos.js").NativeKeychainBackend;
+    NativeWindowsBackend: typeof import("./backends/native-windows.js").NativeWindowsBackend;
+    NativeLinuxBackend: typeof import("./backends/native-linux.js").NativeLinuxBackend;
   };
 
   beforeEach(async () => {
     vi.resetModules();
     delete process.env.TS_KEYRING_BACKEND;
+    delete process.env.TS_KEYRING_ALLOW_INSECURE_FALLBACKS;
 
     mod = await import("./registry.js");
     errors = await import("./errors.js");
     backends = {
       NullBackend: (await import("./backends/null.js")).NullBackend,
       FileSystemBackend: (await import("./backends/file.js")).FileSystemBackend,
-      MacOSKeychainBackend: (await import("./backends/macos.js"))
-        .MacOSKeychainBackend,
-      SecretServiceBackend: (await import("./backends/linux.js"))
-        .SecretServiceBackend,
-      WindowsCredentialBackend: (await import("./backends/windows.js"))
-        .WindowsCredentialBackend,
       NativeKeychainBackend: (await import("./backends/native-macos.js"))
         .NativeKeychainBackend,
+      NativeWindowsBackend: (await import("./backends/native-windows.js"))
+        .NativeWindowsBackend,
+      NativeLinuxBackend: (await import("./backends/native-linux.js"))
+        .NativeLinuxBackend,
     };
     mod.__resetRegistryForTests();
   });
 
+  function mockAllNativeBackendsUnavailable(): void {
+    vi.spyOn(backends.NativeKeychainBackend, "isSupported").mockResolvedValue(
+      false,
+    );
+    vi.spyOn(backends.NativeWindowsBackend, "isSupported").mockResolvedValue(
+      false,
+    );
+    vi.spyOn(backends.NativeLinuxBackend, "isSupported").mockResolvedValue(
+      false,
+    );
+  }
+
   describe("getAllBackends", () => {
     it("lists available backends", async () => {
-      vi.spyOn(backends.MacOSKeychainBackend, "isSupported").mockResolvedValue(
-        false,
-      );
-      vi.spyOn(backends.SecretServiceBackend, "isSupported").mockResolvedValue(
-        false,
-      );
-      vi.spyOn(
-        backends.WindowsCredentialBackend,
-        "isSupported",
-      ).mockResolvedValue(false);
-      vi.spyOn(backends.NativeKeychainBackend, "isSupported").mockResolvedValue(
-        false,
-      );
+      mockAllNativeBackendsUnavailable();
 
       const allBackends = await mod.getAllBackends();
       const ids = allBackends.map((backend) => backend.id);
@@ -175,19 +173,7 @@ describe("backend registry", () => {
     });
 
     it("falls back to null backend when limit excludes all", async () => {
-      vi.spyOn(backends.MacOSKeychainBackend, "isSupported").mockResolvedValue(
-        false,
-      );
-      vi.spyOn(backends.SecretServiceBackend, "isSupported").mockResolvedValue(
-        false,
-      );
-      vi.spyOn(
-        backends.WindowsCredentialBackend,
-        "isSupported",
-      ).mockResolvedValue(false);
-      vi.spyOn(backends.NativeKeychainBackend, "isSupported").mockResolvedValue(
-        false,
-      );
+      mockAllNativeBackendsUnavailable();
 
       await mod.initBackend(() => false);
       const backend = await mod.getKeyring();
@@ -246,7 +232,48 @@ describe("backend registry", () => {
       expect(backend.id).toBe("file");
     });
 
+    it("refuses insecure fallback backends by default", async () => {
+      mockAllNativeBackendsUnavailable();
+
+      await expect(mod.initBackend()).rejects.toBeInstanceOf(errors.InitError);
+    });
+
+    it("allows insecure fallback backends when env flag is enabled", async () => {
+      mockAllNativeBackendsUnavailable();
+      process.env.TS_KEYRING_ALLOW_INSECURE_FALLBACKS = "1";
+
+      await mod.initBackend((backend) => ["file", "null"].includes(backend.id));
+      const backend = await mod.getKeyring();
+      expect(backend.id).toBe("file");
+    });
+
+    it("allows insecure fallback backends when config flag is enabled", async () => {
+      mockAllNativeBackendsUnavailable();
+      const configMod = await import("./config.js");
+      vi.spyOn(configMod, "readConfig").mockResolvedValue({
+        allowInsecureFallbacks: true,
+      });
+
+      await mod.initBackend((backend) => ["file", "null"].includes(backend.id));
+      const backend = await mod.getKeyring();
+      expect(backend.id).toBe("file");
+    });
+
+    it("gives env flag precedence over config flag", async () => {
+      mockAllNativeBackendsUnavailable();
+      process.env.TS_KEYRING_ALLOW_INSECURE_FALLBACKS = "true";
+      const configMod = await import("./config.js");
+      vi.spyOn(configMod, "readConfig").mockResolvedValue({
+        allowInsecureFallbacks: false,
+      });
+
+      await mod.initBackend((backend) => ["file", "null"].includes(backend.id));
+      const backend = await mod.getKeyring();
+      expect(backend.id).toBe("file");
+    });
+
     it("ignores config file when it does not exist", async () => {
+      process.env.TS_KEYRING_ALLOW_INSECURE_FALLBACKS = "1";
       const configMod = await import("./config.js");
       const error = new Error("File not found") as NodeJS.ErrnoException;
       error.code = "ENOENT";
@@ -326,19 +353,8 @@ describe("backend registry", () => {
 
   describe("getKeyring", () => {
     it("initializes backend on first call", async () => {
-      vi.spyOn(backends.MacOSKeychainBackend, "isSupported").mockResolvedValue(
-        false,
-      );
-      vi.spyOn(backends.SecretServiceBackend, "isSupported").mockResolvedValue(
-        false,
-      );
-      vi.spyOn(
-        backends.WindowsCredentialBackend,
-        "isSupported",
-      ).mockResolvedValue(false);
-      vi.spyOn(backends.NativeKeychainBackend, "isSupported").mockResolvedValue(
-        false,
-      );
+      mockAllNativeBackendsUnavailable();
+      process.env.TS_KEYRING_ALLOW_INSECURE_FALLBACKS = "1";
 
       const backend = await mod.getKeyring();
       expect(backend).toBeDefined();
@@ -346,23 +362,18 @@ describe("backend registry", () => {
     });
 
     it("returns the same backend on subsequent calls", async () => {
-      vi.spyOn(backends.MacOSKeychainBackend, "isSupported").mockResolvedValue(
-        false,
-      );
-      vi.spyOn(backends.SecretServiceBackend, "isSupported").mockResolvedValue(
-        false,
-      );
-      vi.spyOn(
-        backends.WindowsCredentialBackend,
-        "isSupported",
-      ).mockResolvedValue(false);
-      vi.spyOn(backends.NativeKeychainBackend, "isSupported").mockResolvedValue(
-        false,
-      );
+      mockAllNativeBackendsUnavailable();
+      process.env.TS_KEYRING_ALLOW_INSECURE_FALLBACKS = "1";
 
       const backend1 = await mod.getKeyring();
       const backend2 = await mod.getKeyring();
       expect(backend1).toBe(backend2);
+    });
+
+    it("throws when only insecure fallback backends are available", async () => {
+      mockAllNativeBackendsUnavailable();
+
+      await expect(mod.getKeyring()).rejects.toBeInstanceOf(errors.InitError);
     });
   });
 
@@ -377,20 +388,6 @@ describe("backend registry", () => {
     });
 
     it("overrides the default backend selection", async () => {
-      vi.spyOn(backends.MacOSKeychainBackend, "isSupported").mockResolvedValue(
-        false,
-      );
-      vi.spyOn(backends.SecretServiceBackend, "isSupported").mockResolvedValue(
-        false,
-      );
-      vi.spyOn(
-        backends.WindowsCredentialBackend,
-        "isSupported",
-      ).mockResolvedValue(false);
-      vi.spyOn(backends.NativeKeychainBackend, "isSupported").mockResolvedValue(
-        false,
-      );
-
       const fileBackend = new backends.FileSystemBackend();
       mod.setKeyring(fileBackend);
 

@@ -12,7 +12,7 @@ Cross-platform secret storage for Node.js applications and CLI usage.
 - Works across Windows, macOS, and Linux using native credential storage
 - Secure storage using Windows Credential Manager, macOS Keychain, and Linux Secret Service
 - **Native macOS Keychain integration** via Security.framework bindings for enhanced security (no password exposure in process lists)
-- Automatic fallback to CLI-based backends when native modules unavailable
+- Secure-by-default auto-detection (native backends only) with opt-in fallback backends
 - Simple CLI interface for managing secrets
 - TypeScript support with full type definitions
 - Programmatic API for Node.js applications
@@ -200,6 +200,26 @@ export TS_KEYRING_BACKEND=file
 export TS_KEYRING_BACKEND=null
 ```
 
+#### Fallback Policy
+
+**`TS_KEYRING_ALLOW_INSECURE_FALLBACKS`** - Controls whether auto-detection may use non-native fallback backends:
+
+```sh
+# Default: secure-only auto-detection (native backends)
+export TS_KEYRING_ALLOW_INSECURE_FALLBACKS=0
+
+# Allow CLI/file fallback backends in auto-detection
+export TS_KEYRING_ALLOW_INSECURE_FALLBACKS=1
+```
+
+When this variable is not set, auto-detection defaults to secure-only behavior.
+If no native backend is available in that mode, initialization fails with an `InitError` explaining how to opt in to fallback backends.
+
+**Important:** This policy applies to **auto-detection only**. Explicit backend selection still works:
+
+- `TS_KEYRING_BACKEND=<backend-id>`
+- `defaultBackend` in `keyring.config.json`
+
 #### Backend Property Overrides
 
 **`KEYRING_PROPERTY_*`** - Override backend-specific properties:
@@ -238,6 +258,7 @@ Keyring uses a JSON configuration file for persistent settings:
 ```json
 {
   "defaultBackend": "file",
+  "allowInsecureFallbacks": false,
   "backendProperties": {
     "file": {
       "file_path": "/custom/path/secrets.json"
@@ -267,6 +288,11 @@ Keyring uses a JSON configuration file for persistent settings:
   "defaultBackend": "null"
 }
 
+// Enable fallback backends in auto-detection (non-native)
+{
+  "allowInsecureFallbacks": true
+}
+
 // Use file backend with custom location
 {
   "defaultBackend": "file",
@@ -289,6 +315,13 @@ Keyring uses a JSON configuration file for persistent settings:
 ```
 
 ### Backend-Specific Configuration
+
+#### Global Backend Policy
+
+- **`allowInsecureFallbacks`** (`boolean`): Allow auto-detection to use non-native fallback backends
+  - Default: `false` (secure-only auto-detection)
+  - Example: `true`
+  - **Environment variable override:** `TS_KEYRING_ALLOW_INSECURE_FALLBACKS=1`
 
 #### File Backend Properties
 
@@ -359,15 +392,25 @@ Keyring uses the following priority order for backend selection:
 
 1. **Environment variable:** `TS_KEYRING_BACKEND` (highest priority)
 2. **Configuration file:** `defaultBackend` setting
-3. **Auto-detection:** Based on platform and backend availability (lowest priority)
+3. **Auto-detection:** Secure native backends only by default (lowest priority)
+
+Auto-detection fallback policy priority:
+
+1. **Environment variable:** `TS_KEYRING_ALLOW_INSECURE_FALLBACKS`
+2. **Configuration file:** `allowInsecureFallbacks`
+3. **Default:** `false` (do not use insecure fallbacks)
+
+This fallback policy does not block explicit backend choices (`TS_KEYRING_BACKEND` / `defaultBackend`).
 
 Environment property overrides (`KEYRING_PROPERTY_*`) always take precedence over configuration file settings.
 
 ## Platform Support
 
-- **Windows**: Uses native Windows Credential Manager bindings (via @napi-rs/keyring) with automatic fallback to PowerShell-based access
-- **macOS**: Uses native Security.framework bindings (via @napi-rs/keyring) with automatic fallback to CLI-based Keychain Access
-- **Linux**: Uses native Secret Service API bindings (via @napi-rs/keyring) with automatic fallback to secret-tool
+- **Windows**: Uses native Windows Credential Manager bindings (via @napi-rs/keyring)
+- **macOS**: Uses native Security.framework bindings (via @napi-rs/keyring)
+- **Linux**: Uses native Secret Service API bindings (via @napi-rs/keyring)
+
+CLI/file fallback backends are available but require explicit opt-in in auto-detection (`allowInsecureFallbacks` or `TS_KEYRING_ALLOW_INSECURE_FALLBACKS=1`).
 
 ### Backend Priority System
 
@@ -384,13 +427,15 @@ cross-keychain uses a priority-based system to automatically select the best ava
 | File Backend                          | All      | 0.5      | Encrypted JSON file         | ⚠️ Limited - AES-256-GCM encrypted, file-based  |
 | Null Backend                          | All      | -1       | No storage                  | ❌ None - Disabled                              |
 
-The native backends (macOS, Windows, and Linux) use @napi-rs/keyring (installed as an optional dependency) for direct API access through native bindings, providing the highest security and performance. These backends eliminate password exposure in process lists and shell command injection risks that can occur with CLI-based approaches. If the native module is not available, the library automatically falls back to shell-based backends.
+The native backends (macOS, Windows, and Linux) use @napi-rs/keyring (installed as an optional dependency) for direct API access through native bindings, providing the highest security and performance. These backends eliminate password exposure in process lists and shell command injection risks that can occur with CLI-based approaches. If native backends are unavailable, fallback backends are only considered when explicitly allowed via `allowInsecureFallbacks` or `TS_KEYRING_ALLOW_INSECURE_FALLBACKS=1`.
 
 ## Security Considerations
 
 ⚠️ **CRITICAL SECURITY WARNING** ⚠️
 
 The security of your stored credentials depends entirely on which backend is used. **Always use native OS backends in production environments.**
+
+By default, auto-detection only uses native backends. To allow non-native fallback backends, set `TS_KEYRING_ALLOW_INSECURE_FALLBACKS=1` or `allowInsecureFallbacks: true` in `keyring.config.json`.
 
 ### Secure Backends (Recommended for Production)
 
@@ -404,14 +449,14 @@ These backends use your operating system's built-in credential management and pr
 - Integrates with macOS authentication policies and Touch ID/Face ID
 - Passwords encrypted using your login keychain password
 - Access restricted to your user account only
-- **Automatic fallback**: Falls back to CLI-based keychain if native module unavailable
+- Native backend is preferred by default in auto-detection
 
 **🔒 macOS Keychain (CLI - Fallback)**
 
 - Uses `security` command-line tool
 - ⚠️ **Security caveat**: Passwords briefly visible in process lists during operations
 - Same encryption and access controls as native backend
-- Automatically selected when native module cannot be loaded
+- Selected when explicitly enabled as a fallback backend
 
 **🔒 Windows Credential Manager**
 

@@ -139,6 +139,46 @@ describe("CLI integration", () => {
     logSpy.mockRestore();
   });
 
+  it("surfaces secure-only auto-detection errors", async () => {
+    buildCli({
+      input: ["get", "svc", "user"],
+    });
+    getPasswordMock.mockRejectedValueOnce(
+      new Error(
+        "No secure keyring backend is available. Install native backends or set TS_KEYRING_ALLOW_INSECURE_FALLBACKS=1.",
+      ),
+    );
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+    await runCli();
+
+    expect(errorSpy).toHaveBeenCalledWith(
+      "No secure keyring backend is available. Install native backends or set TS_KEYRING_ALLOW_INSECURE_FALLBACKS=1.",
+    );
+    expect(process.exitCode).toBe(1);
+
+    errorSpy.mockRestore();
+  });
+
+  it("still works when backend is explicitly selected", async () => {
+    buildCli({
+      flags: { backend: "file" },
+      input: ["get", "svc", "user"],
+    });
+    getPasswordMock.mockResolvedValueOnce("secret");
+    const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+    await runCli();
+
+    expect(useBackendMock).toHaveBeenCalledWith("file");
+    expect(getPasswordMock).toHaveBeenCalledWith("svc", "user");
+    expect(errorSpy).not.toHaveBeenCalled();
+
+    errorSpy.mockRestore();
+    logSpy.mockRestore();
+  });
+
   it("shows help when no operation is provided", async () => {
     const cli = buildCli();
 
