@@ -221,6 +221,9 @@ export KEYRING_PROPERTY_PREFERRED_COLLECTION="my-collection"  # Alternative name
 
 # Windows: Set credential persistence level
 export KEYRING_PROPERTY_PERSIST="local"  # or "session", "enterprise"
+
+# Global validation: Maximum password length (default: 4096)
+export KEYRING_PROPERTY_MAX_PASSWORD_LENGTH="8192"
 ```
 
 ### Configuration File
@@ -240,7 +243,8 @@ Keyring uses a JSON configuration file for persistent settings:
   "defaultBackend": "file",
   "backendProperties": {
     "file": {
-      "file_path": "/custom/path/secrets.json"
+      "file_path": "/custom/path/secrets.json",
+      "max_password_length": 8192
     },
     "native-macos": {
       "keychain": "/path/to/custom.keychain"
@@ -289,6 +293,23 @@ Keyring uses a JSON configuration file for persistent settings:
 ```
 
 ### Backend-Specific Configuration
+
+#### Global Backend Policy
+
+- **`allowInsecureFallbacks`** (`boolean`): Allow auto-detection to use non-native fallback backends
+  - Default: `false` (secure-only auto-detection)
+  - Example: `true`
+  - **Environment variable override:** `TS_KEYRING_ALLOW_INSECURE_FALLBACKS=1`
+
+#### Common Backend Properties
+
+These properties are supported by all backends (native and fallback):
+
+- **`max_password_length`** / **`maxPasswordLength`** (`number` | `string`): Maximum accepted password length
+  - Default: `4096`
+  - Must be a positive integer
+  - Example: `8192`
+  - **Environment variable override:** `KEYRING_PROPERTY_MAX_PASSWORD_LENGTH=8192`
 
 #### File Backend Properties
 

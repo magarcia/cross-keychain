@@ -70,6 +70,7 @@ describe("ConfigurableBackend", () => {
     delete process.env.KEYRING_PROPERTY_FILE_PATH;
     delete process.env.KEYRING_PROPERTY_CUSTOM;
     delete process.env.KEYRING_PROPERTY_ENABLED;
+    delete process.env.KEYRING_PROPERTY_MAX_PASSWORD_LENGTH;
   });
 
   afterEach(() => {
@@ -353,7 +354,7 @@ describe("ConfigurableBackend", () => {
       );
     });
 
-    it("rejects passwords exceeding 4096 characters", () => {
+    it("rejects passwords exceeding default max length (4096)", () => {
       const backend = new TestBackend();
       const longPassword = "a".repeat(4097);
 
@@ -365,11 +366,54 @@ describe("ConfigurableBackend", () => {
       );
     });
 
-    it("accepts passwords with exactly 4096 characters", () => {
+    it("accepts passwords with exactly default max length (4096)", () => {
       const backend = new TestBackend();
       const maxPassword = "a".repeat(4096);
 
       expect(() => backend.testValidatePassword(maxPassword)).not.toThrow();
+    });
+
+    it("uses max_password_length from backend properties", () => {
+      const backend = new TestBackend({ max_password_length: 8 });
+
+      expect(() => backend.testValidatePassword("a".repeat(8))).not.toThrow();
+      expect(() => backend.testValidatePassword("a".repeat(9))).toThrow(
+        "Password exceeds maximum length of 8 characters",
+      );
+    });
+
+    it("uses maxPasswordLength from backend properties", () => {
+      const backend = new TestBackend({ maxPasswordLength: 9 });
+
+      expect(() => backend.testValidatePassword("a".repeat(9))).not.toThrow();
+      expect(() => backend.testValidatePassword("a".repeat(10))).toThrow(
+        "Password exceeds maximum length of 9 characters",
+      );
+    });
+
+    it("uses KEYRING_PROPERTY_MAX_PASSWORD_LENGTH override", () => {
+      process.env.KEYRING_PROPERTY_MAX_PASSWORD_LENGTH = "10";
+      const backend = new TestBackend({ max_password_length: 8 });
+
+      expect(() => backend.testValidatePassword("a".repeat(10))).not.toThrow();
+      expect(() => backend.testValidatePassword("a".repeat(11))).toThrow(
+        "Password exceeds maximum length of 10 characters",
+      );
+    });
+
+    it("rejects invalid max_password_length values", () => {
+      const invalidBackends = [
+        new TestBackend({ max_password_length: 0 }),
+        new TestBackend({ max_password_length: -1 }),
+        new TestBackend({ max_password_length: 1.5 }),
+        new TestBackend({ max_password_length: "abc" }),
+      ];
+
+      for (const backend of invalidBackends) {
+        expect(() => backend.testValidatePassword("password")).toThrow(
+          "max_password_length must be a positive integer",
+        );
+      }
     });
 
     it("normalizes before validation", () => {
