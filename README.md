@@ -529,7 +529,7 @@ export HOME="/home/myuser"
 node /path/to/script.js
 ```
 
-The file backend stores credentials encrypted with AES-256-GCM in `~/.local/share/keyring/secrets.json` with 0600 permissions. The encryption key lives in `~/.config/keyring/file.key`. Both files are outside any git working tree — structurally un-commitable.
+The file backend stores credentials encrypted with AES-256-GCM. See [File Backend - LIMITED SECURITY](#%EF%B8%8F-file-backend---limited-security) for the full threat model and [Data Storage Locations](#data-storage-locations) for exact paths. Both files are outside any git working tree — structurally un-commitable.
 
 ### Persistent Configuration
 
