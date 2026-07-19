@@ -501,6 +501,53 @@ Credentials and configuration files are stored in platform-specific directories:
 - Data: `~/.local/share/keyring` (or `$XDG_DATA_HOME/keyring`)
 - Config: `~/.config/keyring` (or `$XDG_CONFIG_HOME/keyring`)
 
+## Headless / CI Environments
+
+When running in headless environments (CI/CD pipelines, cron jobs, Docker containers, systemd services), the OS keychain backends are unavailable — there is no desktop session, no DBus, and no credential manager daemon. The file backend is designed for these scenarios.
+
+### Quick Setup
+
+```bash
+# Set the backend before any operation
+export TS_KEYRING_BACKEND=file
+
+# Optional: custom file path (default: ~/.local/share/keyring/secrets.json)
+export KEYRING_PROPERTY_FILE_PATH="/secure/path/secrets.json"
+
+# Now all getPassword/setPassword calls use the file backend
+```
+
+### Minimal Cron Example
+
+```bash
+#!/bin/bash
+# A cron job that reads a stored API token
+export TS_KEYRING_BACKEND=file
+export HOME="/home/myuser"
+
+# Your script that calls getPassword("myapp", "api-token")
+node /path/to/script.js
+```
+
+The file backend stores credentials encrypted with AES-256-GCM. See [File Backend - LIMITED SECURITY](#%EF%B8%8F-file-backend---limited-security) for the full threat model and [Data Storage Locations](#data-storage-locations) for exact paths. Both files are outside any git working tree — structurally un-commitable.
+
+### Persistent Configuration
+
+For environments where setting an env var on every invocation is impractical, use the configuration file:
+
+```json
+// ~/.config/keyring/keyring.config.json
+{
+  "defaultBackend": "file"
+}
+```
+
+See [Configuration File](#configuration-file) and [Configuration Priority](#configuration-priority) for details.
+
+### Security Note
+
+The file backend trades security for availability. See [File Backend - LIMITED SECURITY](#%EF%B8%8F-file-backend---limited-security) for the full threat model. For production secrets, prefer native OS backends whenever a desktop session is available.
+
 ## Testing & Development
 
 This project uses modern development tools and practices. Here are the key npm scripts for contributors:
