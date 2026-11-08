@@ -97,6 +97,7 @@
     "@semantic-release/github": "^12.0.10",
     "@types/node": "^26.6.6",
     "@vitest/coverage-istanbul": "^5.1.0",
+    "conventional-changelog-conventionalcommits": "9.3.1",
     "eslint": "^10.14.0",
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-jsdoc": "^65.4.4",
@@ -127,5 +128,8 @@
     "*.{css,scss,less}": [
       "prettier --write"
     ]
+  },
+  "overrides": {
+    "conventional-changelog-conventionalcommits": "9.3.1"
   }
 }
