@@ -37,7 +37,7 @@ async function safeDelete(service: string, account: string): Promise<void> {
   }
 }
 
-describe.sequential("Keyring smoke tests", () => {
+describe("Keyring smoke tests", () => {
   beforeEach(() => {
     __resetKeyringStateForTests();
     delete process.env.TS_KEYRING_BACKEND;

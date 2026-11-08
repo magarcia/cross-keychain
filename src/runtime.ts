@@ -13,6 +13,15 @@ import type {
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
+/**
+ * Spawns a child process and captures its result.
+ *
+ * @param command - The executable to run
+ * @param args - Arguments passed to the executable
+ * @param options - Environment, working directory, timeout, and stdin input
+ * @returns The exit code together with captured stdout and stderr
+ * @throws {KeyringError} When the command exceeds `options.timeoutMs`
+ */
 async function runCommandImpl(
   command: string,
   args: string[],
@@ -70,6 +79,12 @@ async function runCommandImpl(
   });
 }
 
+/**
+ * Checks whether an executable is resolvable on the system PATH.
+ *
+ * @param command - The executable name to look up
+ * @returns Whether an executable matching the name was found
+ */
 async function executableExistsImpl(command: string): Promise<boolean> {
   const delimiter = process.platform === "win32" ? ";" : ":";
   const paths = (process.env.PATH ?? "").split(delimiter).filter(Boolean);
