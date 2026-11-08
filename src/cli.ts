@@ -191,6 +191,15 @@ async function handleDiagnose(): Promise<void> {
   console.log(JSON.stringify(report, null, 2));
 }
 
+/**
+ * Writes a credential to stdout in the requested output format.
+ *
+ * @param credential - The username/password pair to emit
+ * @param credential.username - The account name
+ * @param credential.password - The secret value
+ * @param format - `json` for a JSON object, `plain` for line-based output
+ * @param includeUsername - Include the username in plain output
+ */
 function emitCredential(
   credential: { username: string; password: string },
   format: "plain" | "json",
@@ -206,6 +215,13 @@ function emitCredential(
   console.log(credential.password);
 }
 
+/**
+ * Reads a secret without echoing it back to the terminal.
+ * Falls back to reading stdin when no TTY is available (e.g. piped input).
+ *
+ * @param prompt - The prompt message to display when a TTY is available
+ * @returns The secret with any trailing newlines removed
+ */
 async function readSecret(prompt: string): Promise<string> {
   if (!process.stdin.isTTY) {
     const chunks: Buffer[] = [];
