@@ -85,9 +85,9 @@
             "label": "Documentation"
           }
         ],
-        "successComment": "🎉 This ${issue.pull_request ? 'PR is included' : 'issue has been resolved'} in version [${nextRelease.version}](${releases.filter(release => /github\\.com/.test(release.url))[0].url}) which has been released. 🚀\n\n**Installation:**\n```bash\nnpm install ${package.name}@${nextRelease.version}\n```\n\n**What's new:**\n${nextRelease.notes}",
+        "successComment": "🎉 This <%= issue.pull_request ? 'PR is included' : 'issue has been resolved' %> in version [<%= nextRelease.version %>](<%= releases.filter(release => /github\\.com/.test(release.url))[0]?.url %>) which has been released. 🚀\n\n**Installation:**\n```bash\nnpm install cross-keychain@<%= nextRelease.version %>\n```\n\n**What's new:**\n<%= nextRelease.notes %>",
         "failComment": "❌ The release from branch `${branch.name}` had failed due to the following errors:\n- ${errors.map(err => err.message).join('\\n- ')}",
-        "failTitle": "🚨 Release failed for ${package.name}@${nextRelease.version}",
+        "failTitle": "🚨 Release failed for cross-keychain",
         "labels": false,
         "releasedLabels": [
           "released<%= nextRelease.channel ? `-${nextRelease.channel}` : '' %>"
